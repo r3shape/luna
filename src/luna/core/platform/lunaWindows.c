@@ -16,6 +16,28 @@ static struct LunaPlatformInternal {
     LunaWindow* window;
 } LunaPlatformInternal = {0};
 
+// internal dispatch table ptrs
+static LunaEvents* platformEvents = NULL;
+static LunaInputs* platformInputs = NULL;
+
+
+byte getWindowFlagImpl(u32 flag) {
+    if (!LunaPlatformInternal.handle) return SSDK_FALSE;    // error: window not yet created!
+    return ((LunaPlatformInternal.window->flags & flag) == flag) ? SSDK_TRUE : SSDK_FALSE;
+}
+
+byte setWindowFlagImpl(u32 flag) {
+    if (!LunaPlatformInternal.handle) return SSDK_FALSE;    // error: window not yet created!
+    LunaPlatformInternal.window->flags |= flag;
+    return SSDK_TRUE;
+}
+
+byte remWindowFlagImpl(u32 flag) {
+    if (!LunaPlatformInternal.handle) return SSDK_FALSE;    // error: window not yet created!
+    LunaPlatformInternal.window->flags &= ~flag;
+    return SSDK_TRUE;
+}
+
 
 LRESULT CALLBACK windowProc(HWND handle, u32 msg, WPARAM wParam, LPARAM lParam) {
     if (!handle) return DefWindowProcA(handle, msg, wParam, lParam);    // error: how did you get here?
@@ -24,12 +46,16 @@ LRESULT CALLBACK windowProc(HWND handle, u32 msg, WPARAM wParam, LPARAM lParam) 
     GetWindowRect(LunaPlatformInternal.handle, &window_rect);
 
     // only handle window flags during focus
-    if (lunaPlatform->getWindowFlag(WINDOW_FOCUSED)) {
-        ShowCursor(lunaPlatform->getWindowFlag(WINDOW_SHOW_CURSOR));
-        if (lunaPlatform->getWindowFlag(WINDOW_BIND_CURSOR))
+    if (getWindowFlagImpl(WINDOW_FOCUSED)) {
+        ShowCursor(getWindowFlagImpl(WINDOW_SHOW_CURSOR));
+        
+        if (getWindowFlagImpl(WINDOW_BIND_CURSOR)) {
             ClipCursor(&window_rect);
-        if (lunaPlatform->getWindowFlag(WINDOW_CENTER_CURSOR))
+        }
+        
+        if (getWindowFlagImpl(WINDOW_CENTER_CURSOR)) {
             SetCursorPos((window_rect.left + window_rect.right) / 2, (window_rect.top + window_rect.bottom) / 2);
+        }
     }
 
     switch(msg) {
@@ -38,10 +64,10 @@ LRESULT CALLBACK windowProc(HWND handle, u32 msg, WPARAM wParam, LPARAM lParam) 
         case WM_QUIT:       // fall through WM_DESTROY
         case WM_CLOSE:      // fall through WM_DESTROY
         case WM_DESTROY: {
-            lunaEvents->pushEvent(LUNA_EVENT_EXIT, (LunaEvent){.u8[0]=1}),
+            platformEvents->pushEvent(LUNA_EVENT_EXIT, (LunaEvent){.u8[0]=1}),
             PostQuitMessage(0);
             return 0;
-        } break;
+        }
         
         case WM_SIZE:       // fall through to WMEXITSIZEMOVE
         case WM_MOVE:       // fall through to WMEXITSIZEMOVE
@@ -57,16 +83,16 @@ LRESULT CALLBACK windowProc(HWND handle, u32 msg, WPARAM wParam, LPARAM lParam) 
             
             u16 width = newRect.right - newRect.left;
             u16 height = newRect.bottom - newRect.top;
-            lunaEvents->pushEvent(LUNA_EVENT_RESIZE, (LunaEvent){.u16[0]=width, .u16[1]=height});
+            platformEvents->pushEvent(LUNA_EVENT_RESIZE, (LunaEvent){.u16[0]=width, .u16[1]=height});
         } break;
         
         case WM_KILLFOCUS: {
-            lunaPlatform->remWindowFlag(WINDOW_FOCUSED);
+            remWindowFlagImpl(WINDOW_FOCUSED);
             ClipCursor(NULL);
         } break;
         
         case WM_SETFOCUS: {
-            lunaPlatform->setWindowFlag(WINDOW_FOCUSED);
+            setWindowFlagImpl(WINDOW_FOCUSED);
             if ((LunaPlatformInternal.window->flags & WINDOW_BIND_CURSOR) == WINDOW_BIND_CURSOR) {
                 RECT newRect = {0};
                 GetWindowRect(handle, &newRect);
@@ -86,7 +112,7 @@ LRESULT CALLBACK windowProc(HWND handle, u32 msg, WPARAM wParam, LPARAM lParam) 
             // key pressed/released
             LunaKeyboardKey key = (u16)wParam;
             byte pressed = (msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN);
-            lunaInputs->processKeyInput(key, pressed);
+            platformInputs->processKeyInput(key, pressed);
         } break;
 
         /* RAW INPUT */
@@ -109,33 +135,33 @@ LRESULT CALLBACK windowProc(HWND handle, u32 msg, WPARAM wParam, LPARAM lParam) 
                 } else {
                     i16 x = (i16)mouse->lLastX;
                     i16 y = (i16)mouse->lLastY;
-                    lunaInputs->processMouseMoveInput(x, y);
+                    platformInputs->processMouseMoveInput(x, y);
                 }
 
                 // handle mouse buttons
                 if (mouse->usButtonFlags & RI_MOUSE_LEFT_BUTTON_DOWN) {
-                    lunaInputs->processMouseButtonInput(LUNA_MBUTTON_LEFT, 1);
+                    platformInputs->processMouseButtonInput(LUNA_MBUTTON_LEFT, 1);
                 }
                 if (mouse->usButtonFlags & RI_MOUSE_LEFT_BUTTON_UP) {
-                    lunaInputs->processMouseButtonInput(LUNA_MBUTTON_LEFT, 0);
+                    platformInputs->processMouseButtonInput(LUNA_MBUTTON_LEFT, 0);
                 }
                 if (mouse->usButtonFlags & RI_MOUSE_RIGHT_BUTTON_DOWN) {
-                    lunaInputs->processMouseButtonInput(LUNA_MBUTTON_RIGHT, 1);
+                    platformInputs->processMouseButtonInput(LUNA_MBUTTON_RIGHT, 1);
                 }
                 if (mouse->usButtonFlags & RI_MOUSE_RIGHT_BUTTON_UP) {
-                    lunaInputs->processMouseButtonInput(LUNA_MBUTTON_RIGHT, 0);
+                    platformInputs->processMouseButtonInput(LUNA_MBUTTON_RIGHT, 0);
                 }
                 if (mouse->usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_DOWN) {
-                    lunaInputs->processMouseButtonInput(LUNA_MBUTTON_MIDDLE, 1);
+                    platformInputs->processMouseButtonInput(LUNA_MBUTTON_MIDDLE, 1);
                 }
                 if (mouse->usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_UP) {
-                    lunaInputs->processMouseButtonInput(LUNA_MBUTTON_MIDDLE, 0);
+                    platformInputs->processMouseButtonInput(LUNA_MBUTTON_MIDDLE, 0);
                 }
 
                 // handle mouse wheel
                 if (mouse->usButtonFlags & RI_MOUSE_WHEEL) {
                     i32 z = (i32)((SHORT)mouse->usButtonData) / WHEEL_DELTA;
-                    lunaInputs->processMouseWheelInput(z);
+                    platformInputs->processMouseWheelInput(z);
                 }
             }
         } break;
@@ -143,36 +169,50 @@ LRESULT CALLBACK windowProc(HWND handle, u32 msg, WPARAM wParam, LPARAM lParam) 
     return DefWindowProcA(handle, msg, wParam, lParam);
 }
 
-byte createWindowImpl(str title, Vec2 size, Vec2 location, LunaWindow* window) {
-    if (LunaPlatformInternal.handle != NULL) return SSDK_TRUE;  // error: window already created!
+byte createWindowImpl(str title, u32 width, u32 height, u32 x, u32 y, LunaWindow* window) {
+    if (!window) {
+        saneLog->log(SANE_LOG_ERROR, "[LunaPlatform] invalid ptr :: createWindowImpl()");
+        return SSDK_FALSE;
+    }
+    
+    // Set internal window pointer
+    LunaPlatformInternal.window = window;
+
+    if (LunaPlatformInternal.handle != NULL) {
+        saneLog->log(SANE_LOG_WARN, "[LunaPlatform] window already created");
+        return SSDK_TRUE;  // error: window already created!
+    }
 
     // Register window class
     WNDCLASS wc = {0};
     wc.lpfnWndProc = windowProc;
+    wc.lpszClassName = "LunaWindow";
     wc.hInstance = LunaPlatformInternal.instance;
-    wc.lpszClassName = "Luna Window";
-    
-    if (!RegisterClass(&wc)) return SSDK_FALSE; // error: failed to register window class!
+
+    if (!RegisterClass(&wc)) {
+        saneLog->logFmt(SANE_LOG_ERROR, "[LunaPlatform] failed to register window class (err=%lu)", GetLastError());
+        return SSDK_FALSE;
+    }
 
     // Create the window
-    HWND hwnd = CreateWindow(
-        "Luna Window",
-        title,
+    LunaPlatformInternal.handle = CreateWindow(
+        "LunaWindow", title,
         WS_OVERLAPPEDWINDOW | WS_VISIBLE,
-        (u32)location.x,
-        (u32)location.y,
-        (u32)size.x,
-        (u32)size.y,
+        x, y,
+        width, height,
         NULL,   // parent
         NULL,   // menu
         LunaPlatformInternal.instance,
-        NULL);
+        NULL
+    );
+    
+    if (!LunaPlatformInternal.handle) {
+        saneLog->log(SANE_LOG_ERROR, "[LunaPlatform] failed to create window class");
+        return SSDK_FALSE; // error: failed to create window class!
+    }
 
-    if (!hwnd) return SSDK_FALSE; // error: failed to create window class!
-
-    LunaPlatformInternal.handle = hwnd;
     LunaPlatformInternal.glContext = NULL;
-    LunaPlatformInternal.deviceContext = GetDC(hwnd);
+    LunaPlatformInternal.deviceContext = GetDC(LunaPlatformInternal.handle);
 
     // Register rawinput devices
     LunaPlatformInternal.rid.usUsagePage = 0x01;       // HID_USAGE_PAGE_GENERIC
@@ -180,33 +220,26 @@ byte createWindowImpl(str title, Vec2 size, Vec2 location, LunaWindow* window) {
     LunaPlatformInternal.rid.dwFlags = 0;              // RIDEV_NOLEGACY adds raw mouse and ignores legacy mouse messages
     LunaPlatformInternal.rid.hwndTarget = LunaPlatformInternal.handle;
 
-    if (!RegisterRawInputDevices(&LunaPlatformInternal.rid, 1, sizeof(LunaPlatformInternal.rid))) return SSDK_FALSE;    // error: failed to register rawinput devices!
+    if (!RegisterRawInputDevices(&LunaPlatformInternal.rid, 1, sizeof(LunaPlatformInternal.rid))) {
+        saneLog->log(SANE_LOG_ERROR, "[LunaPlatform] failed to register rawinput devices");
+        return SSDK_FALSE;    // error: failed to register rawinput devices!
+    }
 
     // Initialize the window structure
-    window->flags = 0;
-    window->title = title;
-    window->size.x = size.x;
-    window->size.y = size.y;
-    window->location.x = location.x;
-    window->location.y = location.y;
-    window->aspect = size.x / size.y;
+    LunaPlatformInternal.window->flags = 0;
+    LunaPlatformInternal.window->title = title;
+    LunaPlatformInternal.window->location.x = x;
+    LunaPlatformInternal.window->location.y = y;
+    LunaPlatformInternal.window->size.x = width;
+    LunaPlatformInternal.window->size.y = height;
+    LunaPlatformInternal.window->aspect = width / height;
     
     // Set default window flags
-    lunaPlatform->setWindowFlag(WINDOW_FOCUSED);
-    lunaPlatform->setWindowFlag(WINDOW_SHOW_CURSOR);
-
-    // Set internal window pointer
-    LunaPlatformInternal.window = window;
+    setWindowFlagImpl(WINDOW_FOCUSED);
+    setWindowFlagImpl(WINDOW_SHOW_CURSOR);
 
     return SSDK_TRUE;
 }
-
-void destroyWindowImpl(void) {
-    if (!LunaPlatformInternal.handle) return;    // error: window not yet created!
-    DestroyWindow(LunaPlatformInternal.handle);
-    if (LunaPlatformInternal.glContext) lunaPlatform->destroyGLContext();
-}
-
 
 byte createGLContextImpl(void) {
     if (!LunaPlatformInternal.handle) return SSDK_FALSE;    // error: window not yet created!
@@ -260,6 +293,12 @@ void destroyGLContextImpl(void) {
     }
 }
 
+void destroyWindowImpl(void) {
+    if (!LunaPlatformInternal.handle) return;    // error: window not yet created!
+    DestroyWindow(LunaPlatformInternal.handle);
+    if (LunaPlatformInternal.glContext) destroyGLContextImpl();
+}
+
 
 void pollEventsImpl(void) {
     MSG message;
@@ -270,7 +309,7 @@ void pollEventsImpl(void) {
 }
 
 void pollInputsImpl(void) {
-    lunaInputs->update();
+    platformInputs->update();
 }
 
 
@@ -307,41 +346,38 @@ byte loadLibrarySymbolImpl(str name, ptr* symbol, LunaLibrary* library) {
         *symbol = GetProcAddress((HMODULE)library->handle, name);
     }
 
-    return SSDK_TRUE;
+    if (*symbol == NULL) {
+        saneLog->logFmt(SANE_LOG_ERROR, "[LunaPlatform] failed to load symbol: %s", name);
+        return SSDK_FALSE; // error: null ptr!
+    } else return SSDK_TRUE;
 }
 
 byte unloadLibraryImpl(LunaLibrary* library) {
-    if (!library || !library->handle) return SSDK_FALSE;    // error: null ptr!
-    if (!FreeLibrary((HMODULE)library->handle)) return SSDK_FALSE;  // error: failed to free library!
+    if (!library || !library->handle) {
+        saneLog->log(SANE_LOG_ERROR, "[LunaPlatform] invalid ptr :: unloadLibraryImpl()");
+        return SSDK_FALSE;    // error: null ptr!
+    }
+    if (!FreeLibrary((HMODULE)library->handle)) {
+        saneLog->log(SANE_LOG_ERROR, "[LunaPlatform] failed to free library");
+        return SSDK_FALSE;  // error: failed to free library!
+    }
+
     library->name = NULL;
     library->handle = NULL;
+    
     return SSDK_TRUE;
 }
 
 
-byte getWindowFlagImpl(u32 flag) {
-    if (!LunaPlatformInternal.handle) return SSDK_FALSE;    // error: window not yet created!
-    return ((LunaPlatformInternal.window->flags & flag) == flag) ? SSDK_TRUE : SSDK_FALSE;
-}
-
-byte setWindowFlagImpl(u32 flag) {
-    if (!LunaPlatformInternal.handle) return SSDK_FALSE;    // error: window not yet created!
-    LunaPlatformInternal.window->flags |= flag;
-    return SSDK_TRUE;
-}
-
-byte remWindowFlagImpl(u32 flag) {
-    if (!LunaPlatformInternal.handle) return SSDK_FALSE;    // error: window not yet created!
-    LunaPlatformInternal.window->flags &= ~flag;
-    return SSDK_TRUE;
-}
-
-
-byte lunaInitPlatform(LunaPlatform* table) {
-    if (!table) {
+byte lunaInitPlatform(LunaPlatform* table, ptr events_table, ptr inputs_table) {
+    if (!table || !events_table || !inputs_table) {
         saneLog->log(SANE_LOG_ERROR, "[LunaPlatform] invalid ptr :: lunaInitPlatform()");
         return SSDK_FALSE;
     }
+
+    // assign internal dispatch table ptrs
+    platformEvents = (LunaEvents*)events_table;
+    platformInputs = (LunaInputs*)inputs_table;
 
     table->createWindow = createWindowImpl;
     table->destroyWindow = destroyWindowImpl;

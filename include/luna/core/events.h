@@ -43,10 +43,10 @@ typedef struct LunaEvents {
     u8 (*registerEvent)(LunaEventCode code);
     u8 (*unregisterEvent)(LunaEventCode code);
     u8 (*pushEvent)(LunaEventCode code, LunaEvent event);
+    
     u8 (*registerCallback)(LunaEventCode code, LunaEventCallback callback);
     u8 (*unregisterCallback)(LunaEventCode code, LunaEventCallback callback);
 } LunaEvents;
-extern LunaEvents* lunaEvents;
 
 LUNA_API byte lunaInitEvents(LunaEvents* table);
 LUNA_API byte lunaDeinitEvents(LunaEvents* table);

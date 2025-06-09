@@ -13,10 +13,22 @@ static struct LunaRuntimeInternal {
     byte running;
 } LunaRuntimeInternal = {0};
 
-LunaEvents* lunaEvents;
-LunaInputs* lunaInputs;
-LunaPlatform* lunaPlatform;
-LunaRenderer* lunaRenderer;
+// default runtime callbacks
+byte exitCallback(LunaEventCode code, LunaEvent data) {
+    if (code == LUNA_EVENT_EXIT) {
+        saneLog->log(SANE_LOG_WARN, "[LunaRuntime] Exit Event");
+        LunaRuntimeInternal.running = SSDK_FALSE;
+        return SSDK_TRUE;
+    }; return SSDK_FALSE;
+}
+
+byte resizeCallback(LunaEventCode code, LunaEvent data) {
+    if (code == LUNA_EVENT_RESIZE) {
+        saneLog->log(SANE_LOG_WARN, "[LunaRuntime] Resize Event");
+        return SSDK_TRUE;
+    }; return SSDK_FALSE;
+}
+
 
 none lunaConfigureRuntime(LunaRuntimeConfig config) {
     LunaRuntimeInternal.config.title = (!config.title) ? LUNA_ENGINE_STRING : config.title;
@@ -30,105 +42,36 @@ none lunaConfigureRuntime(LunaRuntimeConfig config) {
     ) ? (Vec2){0.0, 0.0} : config.windowPos;
 
         LunaRuntimeInternal.config.windowSize = (
-        config.windowSize.x <= 0.0 || config.windowPos.y <= 0.0
+        config.windowSize.x <= 0.0 || config.windowSize.y <= 0.0
     ) ? (Vec2){1280.0, 720.0} : config.windowSize;
 
     LunaRuntimeInternal.running = SSDK_TRUE;
-}
-
-byte lunaInitRuntimeImpl(str library) {
-    byte result = SSDK_TRUE;
-
-    ssdkInitMemory();
-    ssdkInitMath();
-    ssdkInitFile();
-    ssdkInitLog();
-    ssdkInitDS();
-    
-    lunaEvents = &LunaRuntimeInternal.events;
-    if (!lunaInitEvents(&LunaRuntimeInternal.events)) {
-        saneLog->log(SANE_LOG_ERROR, "[LunaRuntimeInternal] failed to initialize events");
-        result = SSDK_FALSE;
-    } else saneLog->log(SANE_LOG_SUCCESS, "[LunaRuntimeInternal] initialized events");
-    
-    // TODO: pass ptr to LunaEvents to LunaInputsInternal
-    lunaInputs = &LunaRuntimeInternal.inputs;
-    if (!lunaInitInputs(&LunaRuntimeInternal.inputs)) {
-        saneLog->log(SANE_LOG_ERROR, "[LunaRuntimeInternal] failed to initialize inputs");
-        result = SSDK_FALSE;
-    } else saneLog->log(SANE_LOG_SUCCESS, "[LunaRuntimeInternal] initialized inputs");
-
-    // TODO: pass ptr to LunaEvents and LunaInputs to LunaPlatformInternal
-    lunaPlatform = &LunaRuntimeInternal.platform;
-    if (!lunaInitPlatform(&LunaRuntimeInternal.platform)) {
-        saneLog->log(SANE_LOG_ERROR, "[LunaRuntimeInternal] failed to initialize platform");
-        result = SSDK_FALSE;
-    } else saneLog->log(SANE_LOG_SUCCESS, "[LunaRuntimeInternal] initialized platform");
-
-    if (!LunaRuntimeInternal.platform.loadLibrary("external/user", library, &LunaRuntimeInternal.userLibrary)) {
-        saneLog->log(SANE_LOG_ERROR, "[LunaRuntimeInternal] failed to load user library");
-        result = SSDK_FALSE;
-    } else saneLog->log(SANE_LOG_SUCCESS, "[LunaRuntimeInternal] loaded user library");
-    
-    LunaRuntimeExportFunc exportFunc;
-    if (!LunaRuntimeInternal.platform.loadLibrarySymbol("lunaExport", &LunaRuntimeInternal.userLibrary, &exportFunc)) {
-        saneLog->log(SANE_LOG_ERROR, "[LunaRuntimeInternal] failed to load lunaExport symbol");
-        if (!LunaRuntimeInternal.platform.unloadLibrary(&LunaRuntimeInternal.userLibrary)) {
-            saneLog->log(SANE_LOG_ERROR, "[LunaRuntimeInternal] failed to unload user library");
-        } result = SSDK_FALSE;
-    } else saneLog->log(SANE_LOG_SUCCESS, "[LunaRuntimeInternal] loaded lunaExport symbol");
-    
-    LunaRuntimeInternal.userApi.configure = lunaConfigureRuntime;
-
-    exportFunc(&LunaRuntimeInternal.userApi);
-    if (!LunaRuntimeInternal.userApi.init || !LunaRuntimeInternal.userApi.update ||
-        !LunaRuntimeInternal.userApi.render || !LunaRuntimeInternal.userApi.deinit) {
-        saneLog->log(SANE_LOG_ERROR, "[LunaRuntimeInternal] incomplete LunaRuntimeApi");
-        if (!LunaRuntimeInternal.platform.unloadLibrary(&LunaRuntimeInternal.userLibrary)) {
-            saneLog->log(SANE_LOG_ERROR, "[LunaRuntimeInternal] failed to unload user library");
-        } result = SSDK_FALSE;
-    } else saneLog->log(SANE_LOG_SUCCESS, "[LunaRuntimeInternal] LunaRuntimeApi exported");
-
-    LunaRuntimeInternal.platform.createWindow(
-        LunaRuntimeInternal.config.title,
-        LunaRuntimeInternal.config.windowPos,
-        LunaRuntimeInternal.config.windowSize,
-        &LunaRuntimeInternal.window
-    );
-
-    lunaRenderer = &LunaRuntimeInternal.renderer;
-    if (!lunaInitRenderer(LunaRuntimeInternal.config.backend, &LunaRuntimeInternal.renderer)) {
-        saneLog->log(SANE_LOG_ERROR, "[LunaRuntimeInternal] failed to initialize renderer");
-        result = SSDK_FALSE;
-    } else saneLog->log(SANE_LOG_SUCCESS, "[LunaRuntimeInternal] initialized renderer");
-
-    return result;
 }
 
 byte lunaDeinitRuntimeImpl(none) {
     byte result = SSDK_TRUE;
 
     if (!LunaRuntimeInternal.platform.unloadLibrary(&LunaRuntimeInternal.userLibrary)) {
-        saneLog->log(SANE_LOG_ERROR, "[LunaRuntimeInternal] failed to unload user library");
+        saneLog->log(SANE_LOG_ERROR, "[LunaRuntime] failed to unload user library");
     }
 
     if (!lunaDeinitRenderer(&LunaRuntimeInternal.renderer)) {
-        saneLog->log(SANE_LOG_ERROR, "[LunaRuntimeInternal] failed to deinitialize renderer");
+        saneLog->log(SANE_LOG_ERROR, "[LunaRuntime] failed to deinitialize renderer");
         result = SSDK_FALSE;
     }
 
     if (!lunaDeinitPlatform(&LunaRuntimeInternal.platform)) {
-        saneLog->log(SANE_LOG_ERROR, "[LunaRuntimeInternal] failed to deinitialize platform");
+        saneLog->log(SANE_LOG_ERROR, "[LunaRuntime] failed to deinitialize platform");
         result = SSDK_FALSE;
     }
     
     if (!lunaDeinitInputs(&LunaRuntimeInternal.inputs)) {
-        saneLog->log(SANE_LOG_ERROR, "[LunaRuntimeInternal] failed to deinitialize inputs");
+        saneLog->log(SANE_LOG_ERROR, "[LunaRuntime] failed to deinitialize inputs");
         result = SSDK_FALSE;
     }
     
     if (!lunaDeinitEvents(&LunaRuntimeInternal.events)) {
-        saneLog->log(SANE_LOG_ERROR, "[LunaRuntimeInternal] failed to deinitialize events");
+        saneLog->log(SANE_LOG_ERROR, "[LunaRuntime] failed to deinitialize events");
         result = SSDK_FALSE;
     }
 
@@ -149,22 +92,107 @@ byte lunaDeinitRuntimeImpl(none) {
     LunaRuntimeInternal.config.windowSize = (Vec2){0.0, 0.0};
     LunaRuntimeInternal.config.backend = LUNA_BACKEND_INVALID;
     
-    saneLog->log(SANE_LOG_SUCCESS, "[LunaRuntimeInternal] deinitialized runtime");
+    saneLog->log(SANE_LOG_SUCCESS, "[LunaRuntime] deinitialized runtime");
     
+    return result;
+}
+
+byte lunaInitRuntimeImpl(str library) {
+    byte result = SSDK_TRUE;
+
+    ssdkInitMemory();
+    ssdkInitMath();
+    ssdkInitFile();
+    ssdkInitLog();
+    ssdkInitDS();
+    
+    if (!lunaInitEvents(&LunaRuntimeInternal.events)) {
+        saneLog->log(SANE_LOG_ERROR, "[LunaRuntime] failed to initialize events");
+        return lunaDeinitRuntimeImpl();
+    } else saneLog->log(SANE_LOG_SUCCESS, "[LunaRuntime] initialized events");
+    
+    if (!lunaInitInputs(&LunaRuntimeInternal.inputs, &LunaRuntimeInternal.events)) {
+        saneLog->log(SANE_LOG_ERROR, "[LunaRuntime] failed to initialize inputs");
+        return lunaDeinitRuntimeImpl();
+    } else saneLog->log(SANE_LOG_SUCCESS, "[LunaRuntime] initialized inputs");
+
+    if (!lunaInitPlatform(&LunaRuntimeInternal.platform, &LunaRuntimeInternal.events, &LunaRuntimeInternal.inputs)) {
+        saneLog->log(SANE_LOG_ERROR, "[LunaRuntime] failed to initialize platform");
+        return lunaDeinitRuntimeImpl();
+    } else saneLog->log(SANE_LOG_SUCCESS, "[LunaRuntime] initialized platform");
+
+    if (!LunaRuntimeInternal.platform.loadLibrary(LUNA_USER_PATH_DEFAULT, library, &LunaRuntimeInternal.userLibrary)) {
+        saneLog->log(SANE_LOG_ERROR, "[LunaRuntime] failed to load user library");
+        return lunaDeinitRuntimeImpl();
+    } else saneLog->log(SANE_LOG_SUCCESS, "[LunaRuntime] loaded user library");
+    
+    ptr exportFunc;
+    if (!LunaRuntimeInternal.platform.loadLibrarySymbol("lunaExport", &exportFunc, &LunaRuntimeInternal.userLibrary)) {
+        saneLog->log(SANE_LOG_ERROR, "[LunaRuntime] failed to load lunaExport symbol");
+        if (!LunaRuntimeInternal.platform.unloadLibrary(&LunaRuntimeInternal.userLibrary)) {
+            saneLog->log(SANE_LOG_ERROR, "[LunaRuntime] failed to unload user library");
+        } return lunaDeinitRuntimeImpl();
+    } else saneLog->log(SANE_LOG_SUCCESS, "[LunaRuntime] loaded lunaExport symbol");
+    
+    LunaRuntimeInternal.userApi.configure = lunaConfigureRuntime;
+    
+    ((LunaRuntimeExportFunc)exportFunc)(&LunaRuntimeInternal.userApi);
+    if (!LunaRuntimeInternal.userApi.init || !LunaRuntimeInternal.userApi.update ||
+        !LunaRuntimeInternal.userApi.render || !LunaRuntimeInternal.userApi.deinit) {
+        saneLog->log(SANE_LOG_ERROR, "[LunaRuntime] incomplete LunaRuntimeApi");
+        if (!LunaRuntimeInternal.platform.unloadLibrary(&LunaRuntimeInternal.userLibrary)) {
+            saneLog->log(SANE_LOG_ERROR, "[LunaRuntime] failed to unload user library");
+        } return lunaDeinitRuntimeImpl();
+    } else saneLog->log(SANE_LOG_SUCCESS, "[LunaRuntime] LunaRuntimeApi exported");
+
+    LunaRuntimeInternal.platform.createWindow(
+        LunaRuntimeInternal.config.title,
+        (u32)LunaRuntimeInternal.config.windowSize.x,
+        (u32)LunaRuntimeInternal.config.windowSize.y,
+        (u32)LunaRuntimeInternal.config.windowPos.x,
+        (u32)LunaRuntimeInternal.config.windowPos.y,
+        &LunaRuntimeInternal.window
+    );
+
+    if (!lunaInitRenderer(LunaRuntimeInternal.config.backend, &LunaRuntimeInternal.renderer, &LunaRuntimeInternal.platform)) {
+        saneLog->log(SANE_LOG_ERROR, "[LunaRuntime] failed to initialize renderer");
+        return lunaDeinitRuntimeImpl();
+    } else saneLog->log(SANE_LOG_SUCCESS, "[LunaRuntime] initialized renderer");
+
     return result;
 }
 
 
 i32 main(int agrc, char** argv) {
     if (!lunaInitRuntimeImpl(argv[1])) {
-        saneLog->log(SANE_LOG_ERROR, "[LunaRuntimeInternal] failed to initialize runtime");
+        saneLog->log(SANE_LOG_ERROR, "[LunaRuntime] failed to initialize runtime");
         return 1;
-    } else saneLog->log(SANE_LOG_SUCCESS, "[LunaRuntimeInternal] initialized runtime");
+    } else saneLog->log(SANE_LOG_SUCCESS, "[LunaRuntime] initialized runtime");
+
+    if (!LunaRuntimeInternal.events.registerCallback(LUNA_EVENT_EXIT, exitCallback)) {
+        saneLog->log(SANE_LOG_ERROR, "[LunaRuntime] failed to register default exit callback");
+        if (!lunaDeinitRuntimeImpl()) {
+            saneLog->log(SANE_LOG_ERROR, "[LunaRuntime] failed to deinitialize runtime");
+            return 1;
+        } else saneLog->log(SANE_LOG_SUCCESS, "[LunaRuntime] deinitialized runtime");
+    }
+
+    if (!LunaRuntimeInternal.events.registerCallback(LUNA_EVENT_RESIZE, resizeCallback)) {
+        saneLog->log(SANE_LOG_ERROR, "[LunaRuntime] failed to register default resize callback");
+        if (!lunaDeinitRuntimeImpl()) {
+            saneLog->log(SANE_LOG_ERROR, "[LunaRuntime] failed to deinitialize runtime");
+            return 1;
+        } else saneLog->log(SANE_LOG_SUCCESS, "[LunaRuntime] deinitialized runtime");
+    }
 
     LunaRuntimeInternal.userApi.init();
     do {
         LunaRuntimeInternal.platform.pollEvents();
         LunaRuntimeInternal.platform.pollInputs();
+
+        if (LunaRuntimeInternal.inputs.keyIsDown(LUNA_KEY_F12)) {
+            LunaRuntimeInternal.events.pushEvent(LUNA_EVENT_EXIT, (LunaEvent){0});
+        }
 
         LunaRuntimeInternal.userApi.update(1.0);
         LunaRuntimeInternal.userApi.render();
@@ -175,9 +203,9 @@ i32 main(int agrc, char** argv) {
     LunaRuntimeInternal.userApi.deinit();
     
     if (!lunaDeinitRuntimeImpl()) {
-        saneLog->log(SANE_LOG_ERROR, "[LunaRuntimeInternal] failed to deinitialize runtime");
+        saneLog->log(SANE_LOG_ERROR, "[LunaRuntime] failed to deinitialize runtime");
         return 1;
-    } else saneLog->log(SANE_LOG_SUCCESS, "[LunaRuntimeInternal] deinitialized runtime");
+    } else saneLog->log(SANE_LOG_SUCCESS, "[LunaRuntime] deinitialized runtime");
 
     return 0;
 }

@@ -9,6 +9,9 @@ static struct LunaInputsInternal {
     } devices[2];
 } LunaInputsInternal = {0};
 
+// internal dispatch table ptr
+static LunaEvents* inputEvents = NULL;
+
 void updateImpl(void) {
     memcpy(&LunaInputsInternal.devices[0], &LunaInputsInternal.devices[1], sizeof(LunaInputsInternal.devices[1]));
     
@@ -79,7 +82,7 @@ void mouseGetLastPositionImpl(i16* x, i16* y) {
 }
 
 void processMouseWheelInputImpl(i8 z_delta) {
-    lunaEvents->pushEvent(LUNA_EVENT_MOUSE_WHEEL, (LunaEvent){ .i8[0] = z_delta });
+    inputEvents->pushEvent(LUNA_EVENT_MOUSE_WHEEL, (LunaEvent){ .i8[0] = z_delta });
 }
 
 void processMouseMoveInputImpl(i16 x, i16 y) {
@@ -90,7 +93,7 @@ void processMouseMoveInputImpl(i16 x, i16 y) {
         LunaInputsInternal.devices[1].mouseDelta[0] += x; // WM_INPUT returns mouse deltas so just accumulate them
         LunaInputsInternal.devices[1].mouseDelta[1] += y;
 
-        lunaEvents->pushEvent(LUNA_EVENT_MOUSE_MOVE, (LunaEvent){
+        inputEvents->pushEvent(LUNA_EVENT_MOUSE_MOVE, (LunaEvent){
             .u16[0] = LunaInputsInternal.devices[1].mouseDelta[0],
             .u16[1] = LunaInputsInternal.devices[1].mouseDelta[1]
         });
@@ -100,23 +103,26 @@ void processMouseMoveInputImpl(i16 x, i16 y) {
 void processKeyInputImpl(LunaKeyboardKey key, u8 pressed) {
     if (LunaInputsInternal.devices[1].keyboard[key] != pressed) {
         LunaInputsInternal.devices[1].keyboard[key] = pressed;
-        lunaEvents->pushEvent(pressed ? LUNA_EVENT_KEY_PRESSED : LUNA_EVENT_KEY_RELEASED, (LunaEvent){ .u16[0] = key });
+        inputEvents->pushEvent(pressed ? LUNA_EVENT_KEY_PRESSED : LUNA_EVENT_KEY_RELEASED, (LunaEvent){ .u16[0] = key });
     }
 }
 
 void processMouseButtonInputImpl(LunaMouseButton button, u8 pressed) {
     if (LunaInputsInternal.devices[1].mouseButtons[button] != pressed) {
         LunaInputsInternal.devices[1].mouseButtons[button] = pressed;
-        lunaEvents->pushEvent(pressed ? LUNA_EVENT_BUTTON_PRESSED : LUNA_EVENT_BUTTON_RELEASED, (LunaEvent){ .u16[0] = button });
+        inputEvents->pushEvent(pressed ? LUNA_EVENT_BUTTON_PRESSED : LUNA_EVENT_BUTTON_RELEASED, (LunaEvent){ .u16[0] = button });
     }
 }
 
 
-byte lunaInitInputs(LunaInputs* table) {
-    if (!table) {
+byte lunaInitInputs(LunaInputs* table, ptr events_table) {
+    if (!table || !events_table) {
         saneLog->log(SANE_LOG_ERROR, "[LunaInputs] invalid ptr :: lunaInitInputs()");
         return SSDK_FALSE;
     }
+
+    // assign internal dispatch table ptr
+    inputEvents = (LunaEvents*)events_table;
 
     table->reset = resetImpl;
     table->update = updateImpl;

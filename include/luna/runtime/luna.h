@@ -6,6 +6,8 @@
 #include <include/luna/core/inputs.h>
 #include <include/luna/core/renderer.h>
 
+#define LUNA_USER_PATH_DEFAULT "external/user"
+
 typedef struct LunaRuntimeConfig {
     str title;
     Vec2 windowPos;

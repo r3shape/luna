@@ -25,7 +25,7 @@ typedef struct LunaLibrary {
 } LunaLibrary;
 
 typedef struct LunaPlatform {
-    LUNA_FNPTR(byte, createWindow, str title, Vec2 size, Vec2 location, LunaWindow* window);
+    LUNA_FNPTR(byte, createWindow, str title, u32 width, u32 height, u32 x, u32 y, LunaWindow* window);
     LUNA_FNPTR(none, destroyWindow, none);
     
     LUNA_FNPTR(none, pollEvents, none);
@@ -43,9 +43,8 @@ typedef struct LunaPlatform {
     LUNA_FNPTR(byte, loadLibrary, str path, str name, LunaLibrary* library);
     LUNA_FNPTR(byte, loadLibrarySymbol, str name, ptr* symbol, LunaLibrary* library);
 } LunaPlatform;
-extern LunaPlatform* lunaPlatform;
 
-LUNA_API byte lunaInitPlatform(LunaPlatform* table);
+LUNA_API byte lunaInitPlatform(LunaPlatform* table, ptr events_table, ptr inputs_table);
 LUNA_API byte lunaDeinitPlatform(LunaPlatform* table);
 
 #endif // __LUNA_PLATFORM_H__
