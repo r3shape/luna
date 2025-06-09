@@ -1,0 +1,14 @@
+old/
+bin/
+log/
+user/
+build/
+release/
+.vscode/
+__local__/
+__pycache__/
+
+*.a
+*.lib
+*.dll
+*.exe

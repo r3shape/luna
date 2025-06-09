@@ -1,0 +1,35 @@
+{
+    "luna": {
+        "defines": ["LUNA_BUILD"],
+        "flags": ["-Wall", "-Werror", "-std=c99"],
+
+        "includes": [".", "external/__data__/thirdparty"],
+        "sources": ["src/luna/core/*.c", "src/luna/core/api/*.c", "src/luna/core/platform/*.c"],
+
+        "libraries": {
+            "gdi32": null,
+            "opengl32": null,
+            "SSDK": "external/__data__/thirdparty/bin/SSDK"
+        },
+
+        "name": "lunacore",
+        "type": "dll",
+        "dest": "build"
+    },
+    
+    "runtime": {
+        "flags": ["-Wall", "-Werror", "-std=c99"],
+
+        "includes": [".", "external/__data__/thirdparty"],
+        "sources": ["src/luna/runtime/*.c"],
+
+        "libraries": {
+            "lunacore": "build",
+            "SSDK": "external/__data__/thirdparty/bin/SSDK"
+        },
+
+        "name": "luna",
+        "type": "exe",
+        "dest": "build"
+    }
+}
