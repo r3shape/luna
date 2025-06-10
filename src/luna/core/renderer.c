@@ -16,6 +16,10 @@ static struct LunaRendererInternal {
     u32 frames;
 } LunaRendererInternal = {0};
 
+// global dispatch table ptr
+LunaRenderer* lunaRenderer = NULL;
+
+
 LunaGpuHandle createFrameImpl(none) {
     return 0;
 }
@@ -74,6 +78,9 @@ byte lunaInitRenderer(LunaGpuBackend backend, LunaRenderer* table, ptr platform_
     table->createShader = createShaderImpl;
     table->createPipeline = createPipelineImpl;
 
+    // assign global dispatch table ptr
+    lunaRenderer = table;
+
     saneLog->log(SANE_LOG_SUCCESS, "[LunaRenderer] table initialized");
     return SSDK_TRUE;
 }
@@ -95,6 +102,9 @@ byte lunaDeinitRenderer(LunaRenderer* table) {
         case LUNA_BACKEND_INVALID:  // fall-through
         default: break;
     }
+
+    // null global dispatch table ptr
+    lunaRenderer = NULL;
 
     table->render = NULL;
     table->createCall = NULL;

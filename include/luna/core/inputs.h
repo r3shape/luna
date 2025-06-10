@@ -155,6 +155,7 @@ typedef struct LunaInputs {
     none (*mouseGetPosition)(i16* x, i16* y);
     none (*mouseGetLastPosition)(i16* x, i16* y);
 } LunaInputs;
+extern LunaInputs* lunaInputs;
 
 LUNA_API byte lunaInitInputs(LunaInputs* table, ptr events_table);
 LUNA_API byte lunaDeinitInputs(LunaInputs* table);

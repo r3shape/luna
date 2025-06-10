@@ -9,6 +9,9 @@ static struct LunaInputsInternal {
     } devices[2];
 } LunaInputsInternal = {0};
 
+// global dispatch table ptr
+LunaInputs* lunaInputs = NULL;
+
 // internal dispatch table ptr
 static LunaEvents* inputEvents = NULL;
 
@@ -144,6 +147,9 @@ byte lunaInitInputs(LunaInputs* table, ptr events_table) {
     table->processMouseWheelInput = processMouseWheelInputImpl;
     table->processMouseButtonInput = processMouseButtonInputImpl;
 
+    // assign global dispatch table ptr
+    lunaInputs = table;
+
     saneLog->log(SANE_LOG_SUCCESS, "[LunaInputs] Initialized");
     
     return SSDK_TRUE;
@@ -154,6 +160,9 @@ byte lunaDeinitInputs(LunaInputs* table) {
         saneLog->log(SANE_LOG_ERROR, "[LunaInputs] invalid ptr :: lunaDeinitInputs()");
         return SSDK_FALSE;
     }
+
+    // null global dispatch table ptr
+    lunaInputs = NULL;
 
     table->reset = NULL;
     table->update = NULL;
