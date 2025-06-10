@@ -20,12 +20,11 @@ void deinit(void) {
     return;
 }
 
-
-void export(LunaRuntimeApi* api) {
+void lunaExport(LunaRuntimeApi* api) {
     api->configure((LunaRuntimeConfig){
         .title = "Luna Testbed",
         .windowPos = {100, 100},
-        .windowSize = {1200, 800},
+        .windowSize = {1280, 720},
         .backend = LUNA_BACKEND_OPENGL
     });
     api->init = init;

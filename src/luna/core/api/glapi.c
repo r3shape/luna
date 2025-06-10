@@ -6,6 +6,77 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <include/STB/stb_image.h>
 
+// define null fnptrs
+LUNA_GLFNPTR(GLGenBuffers);
+LUNA_GLFNPTR(GLBindBuffer);
+LUNA_GLFNPTR(GLBufferData);
+LUNA_GLFNPTR(GLMapBuffer);
+LUNA_GLFNPTR(GLUnmapBuffer);
+LUNA_GLFNPTR(GLBufferSubData);
+LUNA_GLFNPTR(GLGetBufferParameteriv);
+LUNA_GLFNPTR(GLDeleteBuffers);
+LUNA_GLFNPTR(GLGenVertexArrays);
+LUNA_GLFNPTR(GLBindVertexArray);
+LUNA_GLFNPTR(GLDeleteVertexArrays);
+LUNA_GLFNPTR(GLEnableVertexAttribArray);
+LUNA_GLFNPTR(GLDisableVertexAttribArray);
+LUNA_GLFNPTR(GLVertexAttribPointer);
+LUNA_GLFNPTR(GLCreateShader);
+LUNA_GLFNPTR(GLShaderSource);
+LUNA_GLFNPTR(GLCompileShader);
+LUNA_GLFNPTR(GLDeleteShader);
+LUNA_GLFNPTR(GLGetShaderiv);
+LUNA_GLFNPTR(GLGetShaderInfoLog);
+LUNA_GLFNPTR(GLCreateProgram);
+LUNA_GLFNPTR(GLAttachShader);
+LUNA_GLFNPTR(GLDetachShader);
+LUNA_GLFNPTR(GLLinkProgram);
+LUNA_GLFNPTR(GLUseProgram);
+LUNA_GLFNPTR(GLDeleteProgram);
+LUNA_GLFNPTR(GLGetProgramiv);
+LUNA_GLFNPTR(GLGetProgramInfoLog);
+LUNA_GLFNPTR(GLGetUniformLocation);
+LUNA_GLFNPTR(GLUniform1i);
+LUNA_GLFNPTR(GLUniform1f);
+LUNA_GLFNPTR(GLUniform2fv);
+LUNA_GLFNPTR(GLUniform3fv);
+LUNA_GLFNPTR(GLUniform4fv);
+LUNA_GLFNPTR(GLUniformMatrix4fv);
+LUNA_GLFNPTR(GLGenTextures);
+LUNA_GLFNPTR(GLBindTexture);
+LUNA_GLFNPTR(GLTexParameteri);
+LUNA_GLFNPTR(GLTexImage2D);
+LUNA_GLFNPTR(GLActiveTexture);
+LUNA_GLFNPTR(GLDeleteTextures);
+LUNA_GLFNPTR(GLGenerateMipmap);
+LUNA_GLFNPTR(GLGenFramebuffers);
+LUNA_GLFNPTR(GLBindFramebuffer);
+LUNA_GLFNPTR(GLFramebufferTexture2D);
+LUNA_GLFNPTR(GLFramebufferRenderbuffer);
+LUNA_GLFNPTR(GLCheckFramebufferStatus);
+LUNA_GLFNPTR(GLDeleteFramebuffers);
+LUNA_GLFNPTR(GLGenRenderbuffers);
+LUNA_GLFNPTR(GLBindRenderbuffer);
+LUNA_GLFNPTR(GLRenderbufferStorage);
+LUNA_GLFNPTR(GLDeleteRenderbuffers);
+LUNA_GLFNPTR(GLDrawArrays);
+LUNA_GLFNPTR(GLDrawElements);
+LUNA_GLFNPTR(GLEnable);
+LUNA_GLFNPTR(GLDisable);
+LUNA_GLFNPTR(GLBlendFunc);
+LUNA_GLFNPTR(GLCullFace);
+LUNA_GLFNPTR(GLDepthFunc);
+LUNA_GLFNPTR(GLViewport);
+LUNA_GLFNPTR(GLPolygonMode);
+LUNA_GLFNPTR(GLClear);
+LUNA_GLFNPTR(GLClearColor);
+LUNA_GLFNPTR(GLClearDepth);
+LUNA_GLFNPTR(GLGetError);
+LUNA_GLFNPTR(GLGetString);
+
+// internal dispatch table ptrs
+static LunaPlatform* glapiPlatform = NULL;
+
 none clearDepthBufferImpl(f32 depth) {
     return;
 }
@@ -86,20 +157,23 @@ none bindProgramImpl(LunaGpuProgram* program) {
 }
 
 
-byte lunaInitGlApi(LunaGpuApi* table) {
-    if (!table) {
+byte lunaInitGlApi(LunaGpuApi* table, ptr platform_table) {
+    if (!table || !platform_table) {
         saneLog->log(SANE_LOG_ERROR, "[glapi] invalid table ptr :: lunaInitGpuBackend()");
         return SSDK_FALSE;
     }
 
-    if (!lunaPlatform->createGLContext()) {
+    // assign internal dispatch table ptr
+    glapiPlatform = (LunaPlatform*)platform_table;
+
+    if (!glapiPlatform->createGLContext()) {
         saneLog->log(SANE_LOG_ERROR, "[glapi] failed to create opengl context");
         return SSDK_FALSE;
     } else saneLog->log(SANE_LOG_SUCCESS, "[glapi] created opengl context");
 
     // glapi
     LunaLibrary opengl32;
-    if (!lunaPlatform->loadLibrary(NULL, "opengl32", &opengl32)) {
+    if (!glapiPlatform->loadLibrary(NULL, "opengl32", &opengl32)) {
         saneLog->log(SANE_LOG_ERROR, "[glapi] failed to load opengl");
         return SSDK_FALSE;
     }  else saneLog->logFmt(SANE_LOG_SUCCESS, "[glapi] loaded opengl v%s", glGetString(GL_VERSION));
@@ -196,12 +270,12 @@ byte lunaInitGlApi(LunaGpuApi* table) {
     };
 
     SSDK_FORI(0, sizeof(functions) / sizeof(functions[0]), 1) {
-        if (!lunaPlatform->loadLibrarySymbol(functions[i].name, functions[i].function, &opengl32)) {
+        if (!glapiPlatform->loadLibrarySymbol(functions[i].name, functions[i].function, &opengl32)) {
             saneLog->logFmt(SANE_LOG_WARN, "[glapi] failed to load function: %s", functions[i].name);
         } else saneLog->logFmt(SANE_LOG_SUCCESS, "[glapi] loaded function: %s", functions[i].name);
     }
     
-    lunaPlatform->unloadLibrary(&opengl32);
+    glapiPlatform->unloadLibrary(&opengl32);
 
     // gpuapi
     table->clearDepthBuffer = clearDepthBufferImpl;
@@ -239,7 +313,7 @@ byte lunaDeinitGlApi(LunaGpuApi* table) {
         return SSDK_FALSE;
     }
 
-    lunaPlatform->destroyGLContext();
+    glapiPlatform->destroyGLContext();
 
     table->clearDepthBuffer = NULL;
     table->clearColorBuffer = NULL;

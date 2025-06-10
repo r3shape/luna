@@ -16,6 +16,10 @@ static struct LunaRendererInternal {
     u32 frames;
 } LunaRendererInternal = {0};
 
+// global dispatch table ptr
+LunaRenderer* lunaRenderer = NULL;
+
+
 LunaGpuHandle createFrameImpl(none) {
     return 0;
 }
@@ -47,16 +51,15 @@ none renderImpl(none) {
 }
 
 
-byte lunaInitRenderer(LunaGpuBackend backend, LunaRenderer* table) {
-    if (!table) {
+byte lunaInitRenderer(LunaGpuBackend backend, LunaRenderer* table, ptr platform_table) {
+    if (!table || !platform_table) {
         saneLog->log(SANE_LOG_ERROR, "[LunaRenderer] invalid table ptr :: lunaInitRenderer()");
         return SSDK_FALSE;
     }
     
-    LunaRendererInternal.backend = backend;
     switch(backend) {
         case LUNA_BACKEND_OPENGL: {
-            if (!lunaInitGlApi(&LunaRendererInternal.gpuApi)) {
+            if (!lunaInitGlApi(&LunaRendererInternal.gpuApi, platform_table)) {
                 saneLog->log(SANE_LOG_ERROR, "[LunaRenderer] failed to initialize gpu backend: OpenGL");
             } else saneLog->log(SANE_LOG_SUCCESS, "[LunaRenderer] initialized gpu backend: OpenGL");
         } break;
@@ -65,7 +68,8 @@ byte lunaInitRenderer(LunaGpuBackend backend, LunaRenderer* table) {
         case LUNA_BACKEND_INVALID:  // fall-through
         default: break;
     }
-
+    
+    LunaRendererInternal.backend = backend;
     table->render = renderImpl;
     table->createCall = createCallImpl;
     table->createFrame = createFrameImpl;
@@ -73,6 +77,9 @@ byte lunaInitRenderer(LunaGpuBackend backend, LunaRenderer* table) {
     table->createBuffer = createBufferImpl;
     table->createShader = createShaderImpl;
     table->createPipeline = createPipelineImpl;
+
+    // assign global dispatch table ptr
+    lunaRenderer = table;
 
     saneLog->log(SANE_LOG_SUCCESS, "[LunaRenderer] table initialized");
     return SSDK_TRUE;
@@ -95,6 +102,9 @@ byte lunaDeinitRenderer(LunaRenderer* table) {
         case LUNA_BACKEND_INVALID:  // fall-through
         default: break;
     }
+
+    // null global dispatch table ptr
+    lunaRenderer = NULL;
 
     table->render = NULL;
     table->createCall = NULL;

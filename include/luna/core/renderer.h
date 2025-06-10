@@ -15,7 +15,7 @@ typedef struct LunaRenderer {
 } LunaRenderer;
 extern LunaRenderer* lunaRenderer;
 
-LUNA_API byte lunaInitRenderer(LunaGpuBackend backend, LunaRenderer* table);
+LUNA_API byte lunaInitRenderer(LunaGpuBackend backend, LunaRenderer* table, ptr platform_table);
 LUNA_API byte lunaDeinitRenderer(LunaRenderer* table);
 
 #endif // __LUNA_RENDERER_H__

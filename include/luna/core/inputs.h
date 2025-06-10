@@ -157,7 +157,7 @@ typedef struct LunaInputs {
 } LunaInputs;
 extern LunaInputs* lunaInputs;
 
-LUNA_API byte lunaInitInputs(LunaInputs* table);
+LUNA_API byte lunaInitInputs(LunaInputs* table, ptr events_table);
 LUNA_API byte lunaDeinitInputs(LunaInputs* table);
 
 #endif // __LUNA_INPUTS_H__

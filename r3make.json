@@ -31,5 +31,21 @@
         "name": "luna",
         "type": "exe",
         "dest": "build"
+    },
+
+    "testbed": {
+        "flags": ["-Wall", "-Werror", "-std=c99"],
+        
+        "sources": ["src/testbed/*.c"],
+        "includes": [".", "external/__data__/thirdparty"],
+
+        "libraries": {
+            "lunacore": "build",
+            "SSDK": "external/__data__/thirdparty/bin/SSDK"
+        },
+    
+        "type": "dll",
+        "name": "testbed",
+        "dest": "external/user"
     }
 }

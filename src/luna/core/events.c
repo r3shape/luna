@@ -6,6 +6,10 @@ static struct LunaEventsInternal {
     LunaEventCallback* callbackv[LUNA_EVENT_CODE_MAX];
 } LunaEventsInternal = {0};
 
+// global dispatch table ptr
+LunaEvents* lunaEvents = NULL;
+
+
 u8 registerEventImpl(LunaEventCode eventCode) {
     if (eventCode >= LUNA_EVENT_CODE_MAX || LunaEventsInternal.eventv[eventCode]) 
         return SSDK_FALSE;
@@ -88,6 +92,16 @@ byte lunaInitEvents(LunaEvents* table) {
         } else saneLog->logFmt(SANE_LOG_SUCCESS, "[LunaEvents] registered: %u", i);
     }
 
+    table->pushEvent = pushEventImpl;
+    table->registerEvent = registerEventImpl;
+    table->unregisterEvent = unregisterEventImpl;
+
+    table->registerCallback = registerCallbackImpl;
+    table->unregisterCallback = unregisterCallbackImpl;
+
+    // assign global dispatch table ptr
+    lunaEvents = table;
+
     saneLog->log(SANE_LOG_SUCCESS, "[LunaEvents] table initialized");
 
     return SSDK_TRUE;
@@ -99,6 +113,15 @@ byte lunaDeinitEvents(LunaEvents* table) {
             unregisterEventImpl(i);
         }
     }
+    // null global dispatch table ptr
+    lunaEvents = NULL;
+
+    table->pushEvent = NULL;
+    table->registerEvent = NULL;
+    table->unregisterEvent = NULL;
+    
+    table->registerCallback = NULL;
+    table->unregisterCallback = NULL;
 
     saneLog->log(SANE_LOG_SUCCESS, "[LunaEvents] table deinitialized");
 
