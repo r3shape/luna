@@ -1,11 +1,13 @@
 #include <include/luna/core/inputs.h>
 #include <include/luna/core/events.h>
+#include <include/r3kt/mem/alloc.h>
+#include <include/r3kt/io/log.h>
 
 static struct LunaInputsInternal {
     struct devices {
         u8 mouseButtons[LUNA_MOUSE_MAX_BUTTONS];
         u8 keyboard[LUNA_MAX_KEYS];
-        i16 mouseDelta[2];
+        s16 mouseDelta[2];
     } devices[2];
 } LunaInputsInternal = {0};
 
@@ -16,7 +18,7 @@ LunaInputs* lunaInputs = NULL;
 static LunaEvents* inputEvents = NULL;
 
 void updateImpl(void) {
-    memcpy(&LunaInputsInternal.devices[0], &LunaInputsInternal.devices[1], sizeof(LunaInputsInternal.devices[1]));
+    r3_mem_write(sizeof(LunaInputsInternal.devices[1]), &LunaInputsInternal.devices[1], &LunaInputsInternal.devices[0]);
     
     // reset current rawinput mouse deltas
     LunaInputsInternal.devices[1].mouseDelta[0] = 0.0;
@@ -24,71 +26,71 @@ void updateImpl(void) {
 }
 
 void resetImpl(void) {
-    SSDK_FORI(0, 2, 1) {
+    FOR_I(0, 2, 1) {
         LunaInputsInternal.devices[i].mouseDelta[0] = 0;
         LunaInputsInternal.devices[i].mouseDelta[1] = 0;
     }
     
-    SSDK_FORI(0, 2, 1) {
-        SSDK_FORJ(0, 256, 1) {
+    FOR_I(0, 2, 1) {
+        FOR_J(0, 256, 1) {
             LunaInputsInternal.devices[i].keyboard[j] = 0;
         }
     }
     
-    SSDK_FORI(0, 2, 1) {
-        SSDK_FORJ(0, LUNA_MOUSE_MAX_BUTTONS, 1) {
+    FOR_I(0, 2, 1) {
+        FOR_J(0, LUNA_MOUSE_MAX_BUTTONS, 1) {
             LunaInputsInternal.devices[i].mouseButtons[j] = 0;
         }
     }
 }
 
 u8 keyIsUpImpl(LunaKeyboardKey key) {
-    return LunaInputsInternal.devices[1].keyboard[key] == SSDK_FALSE;
+    return LunaInputsInternal.devices[1].keyboard[key] == 0;
 }
 
 u8 keyWasUpImpl(LunaKeyboardKey key) {
-    return LunaInputsInternal.devices[0].keyboard[key] == SSDK_FALSE;
+    return LunaInputsInternal.devices[0].keyboard[key] == 0;
 }
 
 u8 keyIsDownImpl(LunaKeyboardKey key) {
-    return LunaInputsInternal.devices[1].keyboard[key] == SSDK_TRUE;
+    return LunaInputsInternal.devices[1].keyboard[key] == 1;
 }
 
 u8 keyWasDownImpl(LunaKeyboardKey key) {
-    return LunaInputsInternal.devices[0].keyboard[key] == SSDK_TRUE;
+    return LunaInputsInternal.devices[0].keyboard[key] == 1;
 }
 
 u8 buttonIsUpImpl(LunaMouseButton button) {
-    return LunaInputsInternal.devices[1].mouseButtons[button] == SSDK_FALSE;
+    return LunaInputsInternal.devices[1].mouseButtons[button] == 0;
 }
 
 u8 buttonWasUpImpl(LunaMouseButton button) {
-    return LunaInputsInternal.devices[0].mouseButtons[button] == SSDK_FALSE;
+    return LunaInputsInternal.devices[0].mouseButtons[button] == 0;
 }
 
 u8 buttonIsDownImpl(LunaMouseButton button) {
-    return LunaInputsInternal.devices[1].mouseButtons[button] == SSDK_TRUE;
+    return LunaInputsInternal.devices[1].mouseButtons[button] == 1;
 }
 
 u8 buttonWasDownImpl(LunaMouseButton button) {
-    return LunaInputsInternal.devices[0].mouseButtons[button] == SSDK_TRUE;
+    return LunaInputsInternal.devices[0].mouseButtons[button] == 1;
 }
 
-void mouseGetPositionImpl(i16* x, i16* y) {
+void mouseGetPositionImpl(s16* x, s16* y) {
     *x = LunaInputsInternal.devices[1].mouseDelta[0];
     *y = LunaInputsInternal.devices[1].mouseDelta[1];
 }
 
-void mouseGetLastPositionImpl(i16* x, i16* y) {
+void mouseGetLastPositionImpl(s16* x, s16* y) {
     *x = LunaInputsInternal.devices[0].mouseDelta[0];
     *y = LunaInputsInternal.devices[0].mouseDelta[1];
 }
 
-void processMouseWheelInputImpl(i8 z_delta) {
-    inputEvents->pushEvent(LUNA_EVENT_MOUSE_WHEEL, (LunaEvent){ .i8[0] = z_delta });
+void processMouseWheelInputImpl(s8 z_delta) {
+    inputEvents->pushEvent(LUNA_EVENT_MOUSE_WHEEL, (LunaEvent){ .s8[0] = z_delta });
 }
 
-void processMouseMoveInputImpl(i16 x, i16 y) {
+void processMouseMoveInputImpl(s16 x, s16 y) {
     if (x != 0 || y != 0) {
         LunaInputsInternal.devices[0].mouseDelta[0] = LunaInputsInternal.devices[1].mouseDelta[0];
         LunaInputsInternal.devices[0].mouseDelta[1] = LunaInputsInternal.devices[1].mouseDelta[1];
@@ -118,10 +120,10 @@ void processMouseButtonInputImpl(LunaMouseButton button, u8 pressed) {
 }
 
 
-byte lunaInitInputs(LunaInputs* table, ptr events_table) {
+u8 lunaInitInputs(LunaInputs* table, ptr events_table) {
     if (!table || !events_table) {
-        saneLog->log(SANE_LOG_ERROR, "[LunaInputs] invalid ptr :: lunaInitInputs()");
-        return SSDK_FALSE;
+        r3_log_stdout(ERROR_LOG, "[LunaInputs] invalid ptr :: lunaInitInputs()\n");
+        return 0;
     }
 
     // assign internal dispatch table ptr
@@ -150,15 +152,15 @@ byte lunaInitInputs(LunaInputs* table, ptr events_table) {
     // assign global dispatch table ptr
     lunaInputs = table;
 
-    saneLog->log(SANE_LOG_SUCCESS, "[LunaInputs] Initialized");
+    r3_log_stdout(SUCCESS_LOG, "[LunaInputs] Initialized\n");
     
-    return SSDK_TRUE;
+    return 1;
 }
 
-byte lunaDeinitInputs(LunaInputs* table) {
+u8 lunaDeinitInputs(LunaInputs* table) {
     if (!table) {
-        saneLog->log(SANE_LOG_ERROR, "[LunaInputs] invalid ptr :: lunaDeinitInputs()");
-        return SSDK_FALSE;
+        r3_log_stdout(ERROR_LOG, "[LunaInputs] invalid ptr :: lunaDeinitInputs()\n");
+        return 0;
     }
 
     // null global dispatch table ptr
@@ -184,8 +186,8 @@ byte lunaDeinitInputs(LunaInputs* table) {
     table->processMouseWheelInput = NULL;
     table->processMouseButtonInput = NULL;
 
-    saneLog->log(SANE_LOG_SUCCESS, "[LunaInputs] table deinitialized");
+    r3_log_stdout(SUCCESS_LOG, "[LunaInputs] table deinitialized\n");
 
-    return SSDK_TRUE;
+    return 1;
 }
 

@@ -1,5 +1,7 @@
 #include <include/luna/core/renderer.h>
 #include <include/luna/core/api/glapi.h>
+#include <include/r3kt/io/log.h>
+#include <include/r3kt/math.h>
 
 static struct LunaRendererInternal {
     LunaGpuPipeline pipelinev[LUNA_GPU_RESOURCE_MAX];
@@ -46,22 +48,22 @@ LunaGpuHandle createPipelineImpl(LunaGpuHandle program, u8 uniforms, LunaGpuUnif
 
 
 none renderImpl(none) {
-    saneLog->log(SANE_LOG_DUMP, "[LunaRenderer] render dump!");
+    r3_log_stdout(INFO_LOG, "[LunaRenderer] render dump!\n");
     return;
 }
 
 
-byte lunaInitRenderer(LunaGpuBackend backend, LunaRenderer* table, ptr platform_table) {
+u8 lunaInitRenderer(LunaGpuBackend backend, LunaRenderer* table, ptr platform_table) {
     if (!table || !platform_table) {
-        saneLog->log(SANE_LOG_ERROR, "[LunaRenderer] invalid table ptr :: lunaInitRenderer()");
-        return SSDK_FALSE;
+        r3_log_stdout(ERROR_LOG, "[LunaRenderer] invalid table ptr :: lunaInitRenderer()\n");
+        return 0;
     }
     
     switch(backend) {
         case LUNA_BACKEND_OPENGL: {
             if (!lunaInitGlApi(&LunaRendererInternal.gpuApi, platform_table)) {
-                saneLog->log(SANE_LOG_ERROR, "[LunaRenderer] failed to initialize gpu backend: OpenGL");
-            } else saneLog->log(SANE_LOG_SUCCESS, "[LunaRenderer] initialized gpu backend: OpenGL");
+                r3_log_stdout(ERROR_LOG, "[LunaRenderer] failed to initialize gpu backend: OpenGL\n");
+            } else r3_log_stdout(SUCCESS_LOG, "[LunaRenderer] initialized gpu backend: OpenGL\n");
         } break;
         case LUNA_BACKEND_VULKAN:  // fall-through
         case LUNA_BACKEND_DIRECTX:  // fall-through
@@ -81,21 +83,21 @@ byte lunaInitRenderer(LunaGpuBackend backend, LunaRenderer* table, ptr platform_
     // assign global dispatch table ptr
     lunaRenderer = table;
 
-    saneLog->log(SANE_LOG_SUCCESS, "[LunaRenderer] table initialized");
-    return SSDK_TRUE;
+    r3_log_stdout(SUCCESS_LOG, "[LunaRenderer] table initialized\n");
+    return 1;
 }
 
-byte lunaDeinitRenderer(LunaRenderer* table) {
+u8 lunaDeinitRenderer(LunaRenderer* table) {
     if (!table) {
-        saneLog->log(SANE_LOG_ERROR, "[LunaRenderer] invalid table ptr :: lunaInitRenderer()");
-        return SSDK_FALSE;
+        r3_log_stdout(ERROR_LOG, "[LunaRenderer] invalid table ptr :: lunaInitRenderer()\n");
+        return 0;
     }
     
     switch(LunaRendererInternal.backend) {
         case LUNA_BACKEND_OPENGL: {
             if (!lunaDeinitGlApi(&LunaRendererInternal.gpuApi)) {
-                saneLog->log(SANE_LOG_ERROR, "[LunaRenderer] failed to deinitialize gpu backend: OpenGL");
-            } else saneLog->log(SANE_LOG_SUCCESS, "[LunaRenderer] deinitialized gpu backend: OpenGL");
+                r3_log_stdout(ERROR_LOG, "[LunaRenderer] failed to deinitialize gpu backend: OpenGL\n");
+            } else r3_log_stdout(SUCCESS_LOG, "[LunaRenderer] deinitialized gpu backend: OpenGL\n");
         } break;
         case LUNA_BACKEND_VULKAN:  // fall-through
         case LUNA_BACKEND_DIRECTX:  // fall-through
@@ -115,6 +117,6 @@ byte lunaDeinitRenderer(LunaRenderer* table) {
     table->createPipeline = NULL;
     LunaRendererInternal.backend = LUNA_BACKEND_INVALID;
 
-    saneLog->log(SANE_LOG_SUCCESS, "[LunaRenderer] table deinitialized");
-    return SSDK_TRUE;
+    r3_log_stdout(SUCCESS_LOG, "[LunaRenderer] table deinitialized\n");
+    return 1;
 }

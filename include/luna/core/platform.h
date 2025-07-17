@@ -1,7 +1,8 @@
 #ifndef __LUNA_PLATFORM_H__
 #define __LUNA_PLATFORM_H__
 
-#include <include/SSDK/SSDK.h>
+#include <include/r3kt/math.h>
+#include <include/r3kt/io/log.h>
 #include <include/luna/core/defines.h>
 
 typedef enum LunaWindowFlag {
@@ -12,11 +13,11 @@ typedef enum LunaWindowFlag {
 } LunaWindowFlag;
 
 typedef struct LunaWindow {
-    u32 flags;
-    str title;
+    Vec2 location;
     Vec2 size;
     f32 aspect;
-    Vec2 location;
+    u32 flags;
+    str title;
 } LunaWindow;
 
 typedef struct LunaLibrary {
@@ -25,26 +26,26 @@ typedef struct LunaLibrary {
 } LunaLibrary;
 
 typedef struct LunaPlatform {
-    LUNA_FNPTR(byte, createWindow, str title, u32 width, u32 height, u32 x, u32 y, LunaWindow* window);
+    LUNA_FNPTR(u8, createWindow, str title, u32 width, u32 height, u32 x, u32 y, LunaWindow* window);
     LUNA_FNPTR(none, destroyWindow, none);
-    
+
     LUNA_FNPTR(none, pollEvents, none);
     LUNA_FNPTR(none, pollInputs, none);
-    
+
     LUNA_FNPTR(none, swapBuffers, none);
-    LUNA_FNPTR(byte, createGLContext, none);
+    LUNA_FNPTR(u8, createGLContext, none);
     LUNA_FNPTR(none, destroyGLContext, none);
 
-    LUNA_FNPTR(byte, getWindowFlag, u32 flag);
-    LUNA_FNPTR(byte, setWindowFlag, u32 flag);
-    LUNA_FNPTR(byte, remWindowFlag, u32 flag);
+    LUNA_FNPTR(u8, getWindowFlag, u32 flag);
+    LUNA_FNPTR(u8, setWindowFlag, u32 flag);
+    LUNA_FNPTR(u8, remWindowFlag, u32 flag);
 
-    LUNA_FNPTR(byte, unloadLibrary, LunaLibrary* library);
-    LUNA_FNPTR(byte, loadLibrary, str path, str name, LunaLibrary* library);
-    LUNA_FNPTR(byte, loadLibrarySymbol, str name, ptr* symbol, LunaLibrary* library);
+    LUNA_FNPTR(u8, unloadLibrary, LunaLibrary* library);
+    LUNA_FNPTR(u8, loadLibrary, str path, str name, LunaLibrary* library);
+    LUNA_FNPTR(u8, loadLibrarySymbol, str name, ptr* symbol, LunaLibrary* library);
 } LunaPlatform;
 
-LUNA_API byte lunaInitPlatform(LunaPlatform* table, ptr events_table, ptr inputs_table);
-LUNA_API byte lunaDeinitPlatform(LunaPlatform* table);
+LUNA_API u8 lunaInitPlatform(LunaPlatform* table, ptr events_table, ptr inputs_table);
+LUNA_API u8 lunaDeinitPlatform(LunaPlatform* table);
 
 #endif // __LUNA_PLATFORM_H__

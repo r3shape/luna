@@ -3,6 +3,10 @@
 #include <include/luna/core/api/glapi.h>
 #include <include/luna/core/api/gpuapi.h>
 
+#include <include/r3kt/math.h>
+#include <include/r3kt/io/log.h>
+#include <include/r3kt/mem/arena.h>
+
 #define STB_IMAGE_IMPLEMENTATION
 #include <include/STB/stb_image.h>
 
@@ -159,24 +163,24 @@ none bindProgramImpl(LunaGpuProgram* program) {
 
 byte lunaInitGlApi(LunaGpuApi* table, ptr platform_table) {
     if (!table || !platform_table) {
-        saneLog->log(SANE_LOG_ERROR, "[glapi] invalid table ptr :: lunaInitGpuBackend()");
-        return SSDK_FALSE;
+        r3_log_stdout(ERROR_LOG, "[glapi] invalid table ptr :: lunaInitGpuBackend()\n");
+        return 0;
     }
 
     // assign internal dispatch table ptr
     glapiPlatform = (LunaPlatform*)platform_table;
 
     if (!glapiPlatform->createGLContext()) {
-        saneLog->log(SANE_LOG_ERROR, "[glapi] failed to create opengl context");
-        return SSDK_FALSE;
-    } else saneLog->log(SANE_LOG_SUCCESS, "[glapi] created opengl context");
+        r3_log_stdout(ERROR_LOG, "[glapi] failed to create opengl context\n");
+        return 0;
+    } else r3_log_stdout(SUCCESS_LOG, "[glapi] created opengl context\n");
 
     // glapi
     LunaLibrary opengl32;
     if (!glapiPlatform->loadLibrary(NULL, "opengl32", &opengl32)) {
-        saneLog->log(SANE_LOG_ERROR, "[glapi] failed to load opengl");
-        return SSDK_FALSE;
-    }  else saneLog->logFmt(SANE_LOG_SUCCESS, "[glapi] loaded opengl v%s", glGetString(GL_VERSION));
+        r3_log_stdout(ERROR_LOG, "[glapi] failed to load opengl\n");
+        return 0;
+    }  else r3_log_stdoutf(SUCCESS_LOG, "[glapi] loaded opengl v%s", glGetString(GL_VERSION));
 
     struct gl_func {
         ptr* function;
@@ -269,10 +273,10 @@ byte lunaInitGlApi(LunaGpuApi* table, ptr platform_table) {
         {(ptr*)&GLGetString, "glGetString"}
     };
 
-    SSDK_FORI(0, sizeof(functions) / sizeof(functions[0]), 1) {
+    FOR_I(0, sizeof(functions) / sizeof(functions[0]), 1) {
         if (!glapiPlatform->loadLibrarySymbol(functions[i].name, functions[i].function, &opengl32)) {
-            saneLog->logFmt(SANE_LOG_WARN, "[glapi] failed to load function: %s", functions[i].name);
-        } else saneLog->logFmt(SANE_LOG_SUCCESS, "[glapi] loaded function: %s", functions[i].name);
+            r3_log_stdoutf(WARN_LOG, "[glapi] failed to load function: %s\n", functions[i].name);
+        } else r3_log_stdoutf(SUCCESS_LOG, "[glapi] loaded function: %s\n", functions[i].name);
     }
     
     glapiPlatform->unloadLibrary(&opengl32);
@@ -304,13 +308,13 @@ byte lunaInitGlApi(LunaGpuApi* table, ptr platform_table) {
     table->writeBuffer = writeBufferImpl;
     table->bindProgram = bindProgramImpl;
 
-    return SSDK_TRUE;
+    return 1;
 }
 
 byte lunaDeinitGlApi(LunaGpuApi* table) {
     if (!table) {
-        saneLog->log(SANE_LOG_WARN, "[glapi] invalid table ptr :: lunaInitGpuBackend()");
-        return SSDK_FALSE;
+        r3_log_stdout(WARN_LOG, "[glapi] invalid table ptr :: lunaInitGpuBackend()\n");
+        return 0;
     }
 
     glapiPlatform->destroyGLContext();
@@ -341,5 +345,5 @@ byte lunaDeinitGlApi(LunaGpuApi* table) {
     table->writeBuffer = NULL;
     table->bindProgram = NULL;
 
-    return SSDK_TRUE;
+    return 1;
 }

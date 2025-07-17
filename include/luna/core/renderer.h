@@ -2,7 +2,7 @@
 #define __LUNA_RENDERER_H__
 
 #include <include/luna/core/api/gpuapi.h>
-#include <include/SSDK/SSDK.h>
+#include <include/luna/core/defines.h>
 
 typedef struct LunaRenderer {
     LUNA_FNPTR(none, render, none);
@@ -15,7 +15,7 @@ typedef struct LunaRenderer {
 } LunaRenderer;
 extern LunaRenderer* lunaRenderer;
 
-LUNA_API byte lunaInitRenderer(LunaGpuBackend backend, LunaRenderer* table, ptr platform_table);
-LUNA_API byte lunaDeinitRenderer(LunaRenderer* table);
+LUNA_API u8 lunaInitRenderer(LunaGpuBackend backend, LunaRenderer* table, ptr platform_table);
+LUNA_API u8 lunaDeinitRenderer(LunaRenderer* table);
 
 #endif // __LUNA_RENDERER_H__

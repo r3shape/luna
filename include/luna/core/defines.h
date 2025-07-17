@@ -1,4 +1,14 @@
+#include <include/r3kt/defines.h>
+
+#ifdef _LUNA_INTERNAL_
+    #include <include/r3kt/mem/arena.h>
+    #include <include/r3kt/math.h>
+#endif
+
 #define LUNA_ENGINE_STRING "Luna 0.0.1"
+
+typedef char* str;
+typedef const char* cstr;
 
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__)
     #define LUNA_PLATFORM_WINDOWS

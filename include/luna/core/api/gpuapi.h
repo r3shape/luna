@@ -1,7 +1,7 @@
 #ifndef __LUNA_GPUAPI_H__
 #define __LUNA_GPUAPI_H__
 
-#include <include/SSDK/SSDK.h>
+#define _LUNA_INTERNAL_
 #include <include/luna/core/defines.h>
 
 #define LUNA_GPU_CALL_MAX       1024
@@ -76,9 +76,9 @@ typedef struct LunaTextureBuffer {
     str path;
     ptr data;
     u32 slot;
-    i32 width;
-    i32 height;
-    i32 channels;
+    s32 width;
+    s32 height;
+    s32 channels;
     LunaGpuHandle tbo;
     LunaGpuTextureType type;
     LunaGpuTextureFormat format;
@@ -115,7 +115,7 @@ typedef struct LunaGpuBuffer {
 
 typedef struct LunaGpuUniform {
     union {
-        i32 i32;
+        s32 s32;
         f32 f32;
         Vec2 vec2;
         Vec3 vec3;
@@ -130,7 +130,7 @@ typedef struct LunaGpuUniform {
 typedef struct LunaGpuProgram {
     str vertex;
     str fragment;
-    HashArray uniforms;
+    ptr uniforms;   // hash array
     LunaGpuHandle handle;
 } LunaGpuProgram;
 
@@ -184,9 +184,9 @@ typedef struct LunaGpuCall {
 typedef struct LunaGpuFrame {
     u8 phases;                  // phase mask, used to track and prevent redundant GpuPhase creation
     u32 calls;
-    Allocator arena;
     LunaGpuHandle handle;
     LunaGpuBuffer buffer;
+    Arena_Allocator arena;
     LunaGpuCall callv[LUNA_GPU_CALL_MAX];
     LunaGpuPhase phasev[LUNA_GPU_PHASE_MAX];
 } LunaGpuFrame;

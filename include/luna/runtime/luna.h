@@ -1,12 +1,11 @@
 #ifndef __LUNA_H__
 #define __LUNA_H__
 
-#include <include/SSDK/SSDK.h>
 #include <include/luna/core/events.h>
 #include <include/luna/core/inputs.h>
 #include <include/luna/core/renderer.h>
 
-#define LUNA_USER_PATH_DEFAULT "external/user"
+#define LUNA_USER_PATH_DEFAULT ".external/user"
 
 typedef struct LunaRuntimeConfig {
     str title;

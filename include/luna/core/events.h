@@ -1,7 +1,6 @@
 #ifndef __LUNA_EVENTS_H__
 #define __LUNA_EVENTS_H__
 
-#include <include/SSDK/SSDK.h>
 #include <include/luna/core/defines.h>
 
 #define LUNA_EVENT_CALLBACK_MAX     (1U << 5)
@@ -22,18 +21,18 @@ typedef enum LunaEventCode {
 
 typedef union LunaEvent {
     // 128 byte maximum
-    i64 i64[2];
+    s64 s64[2];
     u64 u64[2];
     f64 f64[2];
 
-    i32 i32[4];
+    s32 s32[4];
     u32 u32[4];
     f32 f32[4];
 
-    i16 i16[8];
+    s16 s16[8];
     u16 u16[8];
     
-    i8 i8[16];
+    s8 s8[16];
     u8 u8[16];
     char c[16];
 } LunaEvent;
@@ -49,7 +48,7 @@ typedef struct LunaEvents {
 } LunaEvents;
 extern LunaEvents* lunaEvents;
 
-LUNA_API byte lunaInitEvents(LunaEvents* table);
-LUNA_API byte lunaDeinitEvents(LunaEvents* table);
+LUNA_API u8 lunaInitEvents(LunaEvents* table);
+LUNA_API u8 lunaDeinitEvents(LunaEvents* table);
 
 #endif // __LUNA_EVENTS_H__
