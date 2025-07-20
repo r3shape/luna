@@ -12,6 +12,7 @@ typedef enum Log_Level {
 	LOG_LEVELS
 } Log_Level;
 
+R3_API none r3_log_toggle(Log_Level level);
 R3_API none r3_log_stdout(Log_Level level, char* message);
 R3_API none r3_log_stdoutf(Log_Level level, char* message, ...);
 

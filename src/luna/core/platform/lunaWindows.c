@@ -16,23 +16,23 @@ static struct LunaPlatformInternal {
     LunaWindow* window;
 } LunaPlatformInternal = {0};
 
-// internal dispatch table ptrs
-static LunaEvents* platformEvents = NULL;
-static LunaInputs* platformInputs = NULL;
+
+// dispatch table ptrs
+LunaPlatformApi* lunaPlatformApi = NULL;
 
 
-byte getWindowFlagImpl(u32 flag) {
+u8 getWindowFlagImpl(u32 flag) {
     if (!LunaPlatformInternal.handle) return 0;    // error: window not yet created!
     return ((LunaPlatformInternal.window->flags & flag) == flag) ? 1 : 0;
 }
 
-byte setWindowFlagImpl(u32 flag) {
+u8 setWindowFlagImpl(u32 flag) {
     if (!LunaPlatformInternal.handle) return 0;    // error: window not yet created!
     LunaPlatformInternal.window->flags |= flag;
     return 1;
 }
 
-byte remWindowFlagImpl(u32 flag) {
+u8 remWindowFlagImpl(u32 flag) {
     if (!LunaPlatformInternal.handle) return 0;    // error: window not yet created!
     LunaPlatformInternal.window->flags &= ~flag;
     return 1;
@@ -64,7 +64,7 @@ LRESULT CALLBACK windowProc(HWND handle, u32 msg, WPARAM wParam, LPARAM lParam) 
         case WM_QUIT:       // fall through WM_DESTROY
         case WM_CLOSE:      // fall through WM_DESTROY
         case WM_DESTROY: {
-            platformEvents->pushEvent(LUNA_EVENT_EXIT, (LunaEvent){.u8[0]=1}),
+            lunaEventApi->pushEvent(LUNA_EVENT_EXIT, (LunaEvent){.u8[0]=1}),
             PostQuitMessage(0);
             return 0;
         }
@@ -83,7 +83,7 @@ LRESULT CALLBACK windowProc(HWND handle, u32 msg, WPARAM wParam, LPARAM lParam) 
             
             u16 width = newRect.right - newRect.left;
             u16 height = newRect.bottom - newRect.top;
-            platformEvents->pushEvent(LUNA_EVENT_RESIZE, (LunaEvent){.u16[0]=width, .u16[1]=height});
+            lunaEventApi->pushEvent(LUNA_EVENT_RESIZE, (LunaEvent){.u16[0]=width, .u16[1]=height});
         } break;
         
         case WM_KILLFOCUS: {
@@ -111,8 +111,8 @@ LRESULT CALLBACK windowProc(HWND handle, u32 msg, WPARAM wParam, LPARAM lParam) 
         case WM_SYSKEYUP: {
             // key pressed/released
             LunaKeyboardKey key = (u16)wParam;
-            byte pressed = (msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN);
-            platformInputs->processKeyInput(key, pressed);
+            u8 pressed = (msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN);
+            lunaInputApi->processKeyInput(key, pressed);
         } break;
 
         /* RAW INPUT */
@@ -135,33 +135,33 @@ LRESULT CALLBACK windowProc(HWND handle, u32 msg, WPARAM wParam, LPARAM lParam) 
                 } else {
                     s16 x = (s16)mouse->lLastX;
                     s16 y = (s16)mouse->lLastY;
-                    platformInputs->processMouseMoveInput(x, y);
+                    lunaInputApi->processMouseMoveInput(x, y);
                 }
 
                 // handle mouse buttons
                 if (mouse->usButtonFlags & RI_MOUSE_LEFT_BUTTON_DOWN) {
-                    platformInputs->processMouseButtonInput(LUNA_MBUTTON_LEFT, 1);
+                    lunaInputApi->processMouseButtonInput(LUNA_MBUTTON_LEFT, 1);
                 }
                 if (mouse->usButtonFlags & RI_MOUSE_LEFT_BUTTON_UP) {
-                    platformInputs->processMouseButtonInput(LUNA_MBUTTON_LEFT, 0);
+                    lunaInputApi->processMouseButtonInput(LUNA_MBUTTON_LEFT, 0);
                 }
                 if (mouse->usButtonFlags & RI_MOUSE_RIGHT_BUTTON_DOWN) {
-                    platformInputs->processMouseButtonInput(LUNA_MBUTTON_RIGHT, 1);
+                    lunaInputApi->processMouseButtonInput(LUNA_MBUTTON_RIGHT, 1);
                 }
                 if (mouse->usButtonFlags & RI_MOUSE_RIGHT_BUTTON_UP) {
-                    platformInputs->processMouseButtonInput(LUNA_MBUTTON_RIGHT, 0);
+                    lunaInputApi->processMouseButtonInput(LUNA_MBUTTON_RIGHT, 0);
                 }
                 if (mouse->usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_DOWN) {
-                    platformInputs->processMouseButtonInput(LUNA_MBUTTON_MIDDLE, 1);
+                    lunaInputApi->processMouseButtonInput(LUNA_MBUTTON_MIDDLE, 1);
                 }
                 if (mouse->usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_UP) {
-                    platformInputs->processMouseButtonInput(LUNA_MBUTTON_MIDDLE, 0);
+                    lunaInputApi->processMouseButtonInput(LUNA_MBUTTON_MIDDLE, 0);
                 }
 
                 // handle mouse wheel
                 if (mouse->usButtonFlags & RI_MOUSE_WHEEL) {
                     s32 z = (s32)((SHORT)mouse->usButtonData) / WHEEL_DELTA;
-                    platformInputs->processMouseWheelInput(z);
+                    lunaInputApi->processMouseWheelInput(z);
                 }
             }
         } break;
@@ -169,7 +169,7 @@ LRESULT CALLBACK windowProc(HWND handle, u32 msg, WPARAM wParam, LPARAM lParam) 
     return DefWindowProcA(handle, msg, wParam, lParam);
 }
 
-byte createWindowImpl(str title, u32 width, u32 height, u32 x, u32 y, LunaWindow* window) {
+u8 createWindowImpl(str title, u32 width, u32 height, u32 x, u32 y, LunaWindow* window) {
     if (!window) {
         r3_log_stdout(ERROR_LOG, "[LunaPlatform] invalid ptr :: createWindowImpl()\n");
         return 0;
@@ -241,7 +241,7 @@ byte createWindowImpl(str title, u32 width, u32 height, u32 x, u32 y, LunaWindow
     return 1;
 }
 
-byte createGLContextImpl(void) {
+u8 createGLContextImpl(void) {
     if (!LunaPlatformInternal.handle) return 0;    // error: window not yet created!
 
     PIXELFORMATDESCRIPTOR pfd = {
@@ -309,11 +309,11 @@ void pollEventsImpl(void) {
 }
 
 void pollInputsImpl(void) {
-    platformInputs->update();
+    lunaInputApi->update();
 }
 
 
-byte loadLibraryImpl(str path, str name, LunaLibrary* library) {
+u8 loadLibraryImpl(str path, str name, LunaLibrary* library) {
     char full_path[MAX_PATH];
     if (path != NULL) {
         // TODO: levarage r3kt strings instead of snprintf!!!
@@ -331,14 +331,14 @@ byte loadLibraryImpl(str path, str name, LunaLibrary* library) {
     return 1;
 }
 
-byte loadLibrarySymbolImpl(str name, ptr* symbol, LunaLibrary* library) {
+u8 loadLibrarySymbolImpl(str name, ptr* symbol, LunaLibrary* library) {
     if (!library || !library->handle || !name) {
         r3_log_stdoutf(ERROR_LOG, "[LunaPlatform] failed to load symbol: %s\n", name);
         return 0; // error: null ptr!
     }
 
     *symbol = wglGetProcAddress(name);
-    if (*symbol == NULL       ||
+    if ((*symbol == NULL)     ||
         (*symbol == (ptr)0x1) ||
         (*symbol == (ptr)0x2) ||
         (*symbol == (ptr)0x3) ||
@@ -348,11 +348,14 @@ byte loadLibrarySymbolImpl(str name, ptr* symbol, LunaLibrary* library) {
 
     if (*symbol == NULL) {
         r3_log_stdoutf(ERROR_LOG, "[LunaPlatform] failed to load symbol: %s\n", name);
-        return 0; // error: null ptr!
-    } else return 1;
+        return 0;
+    } else {
+        r3_log_stdoutf(INFO_LOG, "[LunaPlatform] loaded symbol: (name)%s (ptr)%p\n", name, *symbol);
+        return 1;
+    }
 }
 
-byte unloadLibraryImpl(LunaLibrary* library) {
+u8 unloadLibraryImpl(LunaLibrary* library) {
     if (!library || !library->handle) {
         r3_log_stdout(ERROR_LOG, "[LunaPlatform] invalid ptr :: unloadLibraryImpl()\n");
         return 0;    // error: null ptr!
@@ -369,65 +372,54 @@ byte unloadLibraryImpl(LunaLibrary* library) {
 }
 
 
-byte lunaInitPlatform(LunaPlatform* table, ptr events_table, ptr inputs_table) {
-    if (!table || !events_table || !inputs_table) {
-        r3_log_stdout(ERROR_LOG, "[LunaPlatform] invalid ptr :: lunaInitPlatform()\n");
+u8 lunaInitPlatform(none) {
+    if (lunaEventApi == NULL) {
+        r3_log_stdout(ERROR_LOG, "[LunaPlatform] LunaEventApi not initialized!\n");
+        return 0;
+    }
+    
+    if (lunaInputApi == NULL) {
+        r3_log_stdout(ERROR_LOG, "[LunaPlatform] LunaInputApi not initialized!\n");
         return 0;
     }
 
-    // assign internal dispatch table ptrs
-    platformEvents = (LunaEvents*)events_table;
-    platformInputs = (LunaInputs*)inputs_table;
+    if (lunaPlatformApi == NULL) {
+        lunaPlatformApi = r3_mem_alloc(sizeof(LunaPlatformApi), 8);
+        if (lunaPlatformApi == NULL) {
+            r3_log_stdout(ERROR_LOG, "[LunaPlatform] failed to allocate lunaPlatformApi dispatch table!\n");
+            return 0;
+        }
+    }
 
-    table->createWindow = createWindowImpl;
-    table->destroyWindow = destroyWindowImpl;
+    lunaPlatformApi->createWindow = createWindowImpl;
+    lunaPlatformApi->destroyWindow = destroyWindowImpl;
     
-    table->swapBuffers = swapBuffersImpl;
-    table->createGLContext = createGLContextImpl;
-    table->destroyGLContext = destroyGLContextImpl;
+    lunaPlatformApi->swapBuffers = swapBuffersImpl;
+    lunaPlatformApi->createGLContext = createGLContextImpl;
+    lunaPlatformApi->destroyGLContext = destroyGLContextImpl;
     
-    table->pollEvents = pollEventsImpl;
-    table->pollInputs = pollInputsImpl;
+    lunaPlatformApi->pollEvents = pollEventsImpl;
+    lunaPlatformApi->pollInputs = pollInputsImpl;
     
-    table->getWindowFlag = getWindowFlagImpl;
-    table->setWindowFlag = setWindowFlagImpl;
-    table->remWindowFlag = remWindowFlagImpl;
+    lunaPlatformApi->getWindowFlag = getWindowFlagImpl;
+    lunaPlatformApi->setWindowFlag = setWindowFlagImpl;
+    lunaPlatformApi->remWindowFlag = remWindowFlagImpl;
     
-    table->loadLibrary = loadLibraryImpl;
-    table->unloadLibrary = unloadLibraryImpl;
-    table->loadLibrarySymbol = loadLibrarySymbolImpl;
+    lunaPlatformApi->loadLibrary = loadLibraryImpl;
+    lunaPlatformApi->unloadLibrary = unloadLibraryImpl;
+    lunaPlatformApi->loadLibrarySymbol = loadLibrarySymbolImpl;
 
-    r3_log_stdout(SUCCESS_LOG, "[LunaPlatform] table initialized\n");
-
+    r3_log_stdout(SUCCESS_LOG, "[LunaPlatform] initialized lunaPlatformApi\n");
     return 1;
 }
 
-byte lunaDeinitPlatform(LunaPlatform* table) {
-    if (!table) {
-        r3_log_stdout(ERROR_LOG, "[LunaPlatform] invalid ptr :: lunaDeinitPlatform()\n");
-        return 0;
+u8 lunaDeinitPlatform(none) {
+    if (lunaPlatformApi != NULL) {
+        r3_mem_dealloc(lunaPlatformApi);
+        lunaPlatformApi = NULL;
     }
 
-    table->createWindow = NULL;
-    table->destroyWindow = NULL;
-    
-    table->swapBuffers = NULL;
-    table->createGLContext = NULL;
-    table->destroyGLContext = NULL;
-    
-    table->pollEvents = NULL;
-    table->pollInputs = NULL;
-    
-    table->getWindowFlag = NULL;
-    table->setWindowFlag = NULL;
-    table->remWindowFlag = NULL;
-    
-    table->loadLibrary = NULL;
-    table->unloadLibrary = NULL;
-    table->loadLibrarySymbol = NULL;
-
-    r3_log_stdout(SUCCESS_LOG, "[LunaPlatform] table deinitialized\n");
-
+    r3_log_stdout(SUCCESS_LOG, "[LunaPlatform] deinitialized lunaPlatformApi\n");
     return 1;
 }
 

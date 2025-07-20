@@ -1,6 +1,7 @@
 #ifndef __LUNA_EVENTS_H__
 #define __LUNA_EVENTS_H__
 
+#define _LUNA_INTERNAL_
 #include <include/luna/core/defines.h>
 
 #define LUNA_EVENT_CALLBACK_MAX     (1U << 5)
@@ -38,17 +39,17 @@ typedef union LunaEvent {
 } LunaEvent;
 typedef u8 (*LunaEventCallback)(LunaEventCode code, LunaEvent event);
 
-typedef struct LunaEvents {
+typedef struct LunaEventApi {
     u8 (*registerEvent)(LunaEventCode code);
     u8 (*unregisterEvent)(LunaEventCode code);
     u8 (*pushEvent)(LunaEventCode code, LunaEvent event);
 
     u8 (*registerCallback)(LunaEventCode code, LunaEventCallback callback);
     u8 (*unregisterCallback)(LunaEventCode code, LunaEventCallback callback);
-} LunaEvents;
-extern LunaEvents* lunaEvents;
+} LunaEventApi;
+LUNA_API LunaEventApi* lunaEventApi;
 
-LUNA_API u8 lunaInitEvents(LunaEvents* table);
-LUNA_API u8 lunaDeinitEvents(LunaEvents* table);
+LUNA_API u8 lunaInitEvents(none);
+LUNA_API u8 lunaDeinitEvents(none);
 
 #endif // __LUNA_EVENTS_H__

@@ -12,10 +12,7 @@ static struct LunaInputsInternal {
 } LunaInputsInternal = {0};
 
 // global dispatch table ptr
-LunaInputs* lunaInputs = NULL;
-
-// internal dispatch table ptr
-static LunaEvents* inputEvents = NULL;
+LunaInputApi* lunaInputApi = NULL;
 
 void updateImpl(void) {
     r3_mem_write(sizeof(LunaInputsInternal.devices[1]), &LunaInputsInternal.devices[1], &LunaInputsInternal.devices[0]);
@@ -87,7 +84,7 @@ void mouseGetLastPositionImpl(s16* x, s16* y) {
 }
 
 void processMouseWheelInputImpl(s8 z_delta) {
-    inputEvents->pushEvent(LUNA_EVENT_MOUSE_WHEEL, (LunaEvent){ .s8[0] = z_delta });
+    lunaEventApi->pushEvent(LUNA_EVENT_MOUSE_WHEEL, (LunaEvent){ .s8[0] = z_delta });
 }
 
 void processMouseMoveInputImpl(s16 x, s16 y) {
@@ -98,7 +95,7 @@ void processMouseMoveInputImpl(s16 x, s16 y) {
         LunaInputsInternal.devices[1].mouseDelta[0] += x; // WM_INPUT returns mouse deltas so just accumulate them
         LunaInputsInternal.devices[1].mouseDelta[1] += y;
 
-        inputEvents->pushEvent(LUNA_EVENT_MOUSE_MOVE, (LunaEvent){
+        lunaEventApi->pushEvent(LUNA_EVENT_MOUSE_MOVE, (LunaEvent){
             .u16[0] = LunaInputsInternal.devices[1].mouseDelta[0],
             .u16[1] = LunaInputsInternal.devices[1].mouseDelta[1]
         });
@@ -108,86 +105,62 @@ void processMouseMoveInputImpl(s16 x, s16 y) {
 void processKeyInputImpl(LunaKeyboardKey key, u8 pressed) {
     if (LunaInputsInternal.devices[1].keyboard[key] != pressed) {
         LunaInputsInternal.devices[1].keyboard[key] = pressed;
-        inputEvents->pushEvent(pressed ? LUNA_EVENT_KEY_PRESSED : LUNA_EVENT_KEY_RELEASED, (LunaEvent){ .u16[0] = key });
+        lunaEventApi->pushEvent(pressed ? LUNA_EVENT_KEY_PRESSED : LUNA_EVENT_KEY_RELEASED, (LunaEvent){ .u16[0] = key });
     }
 }
 
 void processMouseButtonInputImpl(LunaMouseButton button, u8 pressed) {
     if (LunaInputsInternal.devices[1].mouseButtons[button] != pressed) {
         LunaInputsInternal.devices[1].mouseButtons[button] = pressed;
-        inputEvents->pushEvent(pressed ? LUNA_EVENT_BUTTON_PRESSED : LUNA_EVENT_BUTTON_RELEASED, (LunaEvent){ .u16[0] = button });
+        lunaEventApi->pushEvent(pressed ? LUNA_EVENT_BUTTON_PRESSED : LUNA_EVENT_BUTTON_RELEASED, (LunaEvent){ .u16[0] = button });
     }
 }
 
 
-u8 lunaInitInputs(LunaInputs* table, ptr events_table) {
-    if (!table || !events_table) {
-        r3_log_stdout(ERROR_LOG, "[LunaInputs] invalid ptr :: lunaInitInputs()\n");
+u8 lunaInitInputs(none) {
+    if (lunaEventApi == NULL) {
+        r3_log_stdout(ERROR_LOG, "[LunaInputs] LunaEventApi not initialized!\n");
         return 0;
     }
 
-    // assign internal dispatch table ptr
-    inputEvents = (LunaEvents*)events_table;
-
-    table->reset = resetImpl;
-    table->update = updateImpl;
-    
-    table->keyIsUp = keyIsUpImpl;
-    table->keyWasUp = keyWasUpImpl;
-    table->keyIsDown = keyIsDownImpl;
-    table->keyWasDown = keyWasDownImpl;
-    
-    table->buttonIsUp = buttonIsUpImpl;
-    table->buttonWasUp = buttonWasUpImpl;
-    table->buttonIsDown = buttonIsDownImpl;
-    table->buttonWasDown = buttonWasDownImpl;
-    table->mouseGetPosition = mouseGetPositionImpl;
-    table->mouseGetLastPosition = mouseGetLastPositionImpl;
-
-    table->processKeyInput = processKeyInputImpl;
-    table->processMouseMoveInput = processMouseMoveInputImpl;
-    table->processMouseWheelInput = processMouseWheelInputImpl;
-    table->processMouseButtonInput = processMouseButtonInputImpl;
-
-    // assign global dispatch table ptr
-    lunaInputs = table;
-
-    r3_log_stdout(SUCCESS_LOG, "[LunaInputs] Initialized\n");
-    
-    return 1;
-}
-
-u8 lunaDeinitInputs(LunaInputs* table) {
-    if (!table) {
-        r3_log_stdout(ERROR_LOG, "[LunaInputs] invalid ptr :: lunaDeinitInputs()\n");
-        return 0;
+    if (lunaInputApi == NULL) {
+        lunaInputApi = r3_mem_alloc(sizeof(LunaInputApi), 8);
+        if (lunaInputApi == NULL) {
+            r3_log_stdout(ERROR_LOG, "[LunaInputs] failed to allocate lunaInputApi dispatch table!\n");
+            return 0;
+        }
     }
 
-    // null global dispatch table ptr
-    lunaInputs = NULL;
-
-    table->reset = NULL;
-    table->update = NULL;
+    lunaInputApi->reset = resetImpl;
+    lunaInputApi->update = updateImpl;
     
-    table->keyIsUp = NULL;
-    table->keyWasUp = NULL;
-    table->keyIsDown = NULL;
-    table->keyWasDown = NULL;
+    lunaInputApi->keyIsUp = keyIsUpImpl;
+    lunaInputApi->keyWasUp = keyWasUpImpl;
+    lunaInputApi->keyIsDown = keyIsDownImpl;
+    lunaInputApi->keyWasDown = keyWasDownImpl;
     
-    table->buttonIsUp = NULL;
-    table->buttonWasUp = NULL;
-    table->buttonIsDown = NULL;
-    table->buttonWasDown = NULL;
-    table->mouseGetPosition = NULL;
-    table->mouseGetLastPosition = NULL;
+    lunaInputApi->buttonIsUp = buttonIsUpImpl;
+    lunaInputApi->buttonWasUp = buttonWasUpImpl;
+    lunaInputApi->buttonIsDown = buttonIsDownImpl;
+    lunaInputApi->buttonWasDown = buttonWasDownImpl;
+    lunaInputApi->mouseGetPosition = mouseGetPositionImpl;
+    lunaInputApi->mouseGetLastPosition = mouseGetLastPositionImpl;
 
-    table->processKeyInput = NULL;
-    table->processMouseMoveInput = NULL;
-    table->processMouseWheelInput = NULL;
-    table->processMouseButtonInput = NULL;
+    lunaInputApi->processKeyInput = processKeyInputImpl;
+    lunaInputApi->processMouseMoveInput = processMouseMoveInputImpl;
+    lunaInputApi->processMouseWheelInput = processMouseWheelInputImpl;
+    lunaInputApi->processMouseButtonInput = processMouseButtonInputImpl;
 
-    r3_log_stdout(SUCCESS_LOG, "[LunaInputs] table deinitialized\n");
-
+    r3_log_stdout(SUCCESS_LOG, "[LunaEvents] initialized lunaInputApi\n");
     return 1;
 }
 
+u8 lunaDeinitInputs(none) {
+    if (lunaInputApi != NULL) {
+        r3_mem_dealloc(lunaInputApi);
+        lunaInputApi = NULL;
+    }
+
+    r3_log_stdout(SUCCESS_LOG, "[LunaEvents] deinitialized lunaInputApi\n");
+    return 1;
+}

@@ -1,21 +1,33 @@
 #ifndef __LUNA_RENDERER_H__
 #define __LUNA_RENDERER_H__
 
-#include <include/luna/core/api/gpuapi.h>
+#define _LUNA_INTERNAL_
+#include <include/luna/core/api/gpu.h>
 #include <include/luna/core/defines.h>
 
-typedef struct LunaRenderer {
+typedef struct LunaRenderApi {
     LUNA_FNPTR(none, render, none);
     LUNA_FNPTR(LunaGpuHandle, createFrame, none);
     LUNA_FNPTR(LunaGpuHandle, createCall, LunaGpuCall call);
-    LUNA_FNPTR(LunaGpuHandle, createPhase, LunaGpuPhaseType type, ptr phase);       // ptr cast to specific phase structure internally
-    LUNA_FNPTR(LunaGpuHandle, createBuffer, LunaGpuBufferType type, ptr buffer);    // ptr cast to specific buffer structure internally
-    LUNA_FNPTR(LunaGpuHandle, createShader, str vertexShader, str fragmentShader);
-    LUNA_FNPTR(LunaGpuHandle, createPipeline, LunaGpuHandle program, u8 uniforms, LunaGpuUniform* uniformv);
-} LunaRenderer;
-extern LunaRenderer* lunaRenderer;
+    
+    LUNA_FNPTR(LunaGpuHandle, createPhase, LunaGpuPhase phase);
+    LUNA_FNPTR(none, destroyPhase, LunaGpuHandle phase);
 
-LUNA_API u8 lunaInitRenderer(LunaGpuBackend backend, LunaRenderer* table, ptr platform_table);
-LUNA_API u8 lunaDeinitRenderer(LunaRenderer* table);
+    
+    LUNA_FNPTR(LunaGpuHandle, createBuffer, LunaGpuBuffer buffer);
+    LUNA_FNPTR(none, destroyBuffer, LunaGpuHandle buffer);
+
+    
+    LUNA_FNPTR(LunaGpuHandle, createProgram, str vertexShader, str fragmentShader);
+    LUNA_FNPTR(none, destroyProgram, LunaGpuHandle program);
+
+    
+    LUNA_FNPTR(LunaGpuHandle, createPipeline, LunaGpuPipeline pipeline);
+    LUNA_FNPTR(none, destroyPipeline, LunaGpuHandle pipeline);
+} LunaRenderApi;
+LUNA_API LunaRenderApi* lunaRenderApi;
+
+LUNA_API u8 lunaInitRenderer(LunaGpuBackend backend);
+LUNA_API u8 lunaDeinitRenderer(none);
 
 #endif // __LUNA_RENDERER_H__

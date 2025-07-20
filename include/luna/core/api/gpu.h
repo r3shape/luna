@@ -4,9 +4,10 @@
 #define _LUNA_INTERNAL_
 #include <include/luna/core/defines.h>
 
-#define LUNA_GPU_CALL_MAX       1024
-#define LUNA_GPU_PHASE_MAX      4
-#define LUNA_GPU_RESOURCE_MAX   1024
+#define LUNA_GPU_CALL_MAX               KiB
+#define LUNA_GPU_PHASE_MAX              4
+#define LUNA_GPU_RESOURCE_MAX           KiB
+#define LUNA_GPU_PROGRAM_BUFFER_SIZE   (2 * KiB)
 
 typedef u32 LunaGpuHandle;
 
@@ -22,7 +23,8 @@ typedef enum LunaGpuBufferType {
     LUNA_BUFFER_TEXTURE,
     LUNA_BUFFER_ELEMENT,
     LUNA_BUFFER_VERTEX,
-    LUNA_BUFFER_FRAME
+    LUNA_BUFFER_FRAME,
+    LUNA_BUFFER_TYPES
 } LunaGpuBufferType;
 
 typedef enum LunaGpuTextureType {
@@ -58,7 +60,8 @@ typedef enum LunaGpuPhaseType {
     LUNA_PHASE_SHADOW,
     LUNA_PHASE_OPAQUE,
     LUNA_PHASE_LIGHT,
-    LUNA_PHASE_DEPTH
+    LUNA_PHASE_DEPTH,
+    LUNA_PHASE_TYPES
 } LunaGpuPhaseType;
 
 typedef enum LunaGpuUniformType {
@@ -92,9 +95,11 @@ typedef struct LunaElementBuffer {
 
 typedef struct LunaVertexBuffer {
     f32* vertexv;
+    u32 size;
     u32 vertices;
+    LunaGpuHandle vbo;
     LunaGpuHandle vao;
-    u8 format;
+    u8 attribs;
 } LunaVertexBuffer;
 
 typedef struct LunaFrameBuffer {
@@ -110,6 +115,7 @@ typedef struct LunaGpuBuffer {
         LunaElementBuffer element;
         LunaTextureBuffer texture;
     };
+    LunaGpuHandle handle;
     LunaGpuBufferType type;
 } LunaGpuBuffer;
 
@@ -122,15 +128,19 @@ typedef struct LunaGpuUniform {
         Vec4 vec4;
         Mat4 mat4;
     };
-    str name;
+    cstr name;
     u32 location;
     LunaGpuUniformType type;
 } LunaGpuUniform;
 
 typedef struct LunaGpuProgram {
-    str vertex;
-    str fragment;
-    ptr uniforms;   // hash array
+    str fragment_path;
+    str vertex_path;
+    Buffer fragment_buffer;
+    Buffer vertex_buffer;
+    u32 program;
+    u32 uniforms;
+    Array uniformv;
     LunaGpuHandle handle;
 } LunaGpuProgram;
 
@@ -148,7 +158,7 @@ typedef struct LunaGpuDepthPhase {
 } LunaGpuDepthPhase;
 
 typedef struct LunaGpuOpaquePhase {
-    Vec3 clear_color;
+    Vec4 clear_color;
 } LunaGpuOpaquePhase;
 
 typedef struct LunaGpuLightPhase { u8 mask; } LunaGpuLightPhase;
@@ -156,8 +166,8 @@ typedef struct LunaGpuShadowPhase { u8 mask; } LunaGpuShadowPhase;
 
 typedef struct LunaGpuPhase {
     LunaGpuUniform uniformv[4];
-    // LunaGpuHandle writev[8];
-    // LunaGpuHandle readv[8];
+    LunaGpuHandle writev[8];
+    LunaGpuHandle readv[8];
     union {
         LunaGpuDepthPhase depth;
         LunaGpuOpaquePhase opaque;
@@ -168,16 +178,17 @@ typedef struct LunaGpuPhase {
     LunaGpuPhaseType type;
     LunaGpuHandle handle;
     u8 uniforms;
-    // u32 writes;
-    // u32 reads;
+    u32 writes;
+    u32 reads;
 } LunaGpuPhase;
 
 typedef struct LunaGpuCall {
     LunaGpuUniform uniformv[6];
-    LunaGpuHandle elementBuffer;
-    LunaGpuHandle vertexBuffer;
+    LunaGpuHandle element_buffer;
+    LunaGpuHandle vertex_buffer;
     LunaGpuHandle pipeline;
     LunaGpuHandle phase;
+    LunaGpuHandle handle;
     u8 uniforms;
 } LunaGpuCall;
 
@@ -192,31 +203,32 @@ typedef struct LunaGpuFrame {
 } LunaGpuFrame;
 
 typedef struct LunaGpuApi {
-    LUNA_FNPTR(none, clearDepthBuffer, f32 depth);
-    LUNA_FNPTR(none, clearColorBuffer, Vec3 color);
+    LUNA_FNPTR(u8, clearDepthBuffer, f32 depth);
+    LUNA_FNPTR(u8, clearColorBuffer, Vec4 color);
 
-    LUNA_FNPTR(none, createProgram, LunaGpuProgram* program);
-    LUNA_FNPTR(none, destroyProgram, LunaGpuProgram* program);
+    LUNA_FNPTR(u8, createProgram, LunaGpuProgram* program);
+    LUNA_FNPTR(u8, destroyProgram, LunaGpuProgram* program);
     
-    LUNA_FNPTR(none, sendUniform, str name, LunaGpuProgram* program);
-    LUNA_FNPTR(none, setUniform, LunaGpuUniform* uniform, LunaGpuProgram* program);
+    LUNA_FNPTR(u8, sendUniform, cstr name, LunaGpuProgram* program);
+    LUNA_FNPTR(u8, setUniform, LunaGpuUniform* uniform, LunaGpuProgram* program);
     
-    LUNA_FNPTR(none, createVertexBuffer, LunaGpuBuffer* buffer);
-    LUNA_FNPTR(none, destroyVertexBuffer, LunaGpuBuffer* buffer);
+    LUNA_FNPTR(u8, createVertexBuffer, LunaGpuBuffer* buffer);
+    LUNA_FNPTR(u8, destroyVertexBuffer, LunaGpuBuffer* buffer);
     
-    LUNA_FNPTR(none, createElementBuffer, LunaGpuBuffer* buffer);
-    LUNA_FNPTR(none, destroyElementBuffer, LunaGpuBuffer* buffer);
+    LUNA_FNPTR(u8, createElementBuffer, LunaGpuBuffer* buffer);
+    LUNA_FNPTR(u8, destroyElementBuffer, LunaGpuBuffer* buffer);
     
-    LUNA_FNPTR(none, createTextureBuffer, LunaGpuBuffer* buffer);
-    LUNA_FNPTR(none, destroyTextureBuffer, LunaGpuBuffer* buffer);
+    LUNA_FNPTR(u8, createTextureBuffer, LunaGpuBuffer* buffer);
+    LUNA_FNPTR(u8, destroyTextureBuffer, LunaGpuBuffer* buffer);
    
-    LUNA_FNPTR(none, createFrameBuffer, LunaGpuBuffer* buffer);
-    LUNA_FNPTR(none, destroyFrameBuffer, LunaGpuBuffer* buffer);
+    LUNA_FNPTR(u8, createFrameBuffer, LunaGpuBuffer* buffer);
+    LUNA_FNPTR(u8, destroyFrameBuffer, LunaGpuBuffer* buffer);
 
-    LUNA_FNPTR(none, bindBuffer, LunaGpuBuffer* buffer);
-    LUNA_FNPTR(none, readBuffer, LunaGpuBuffer* buffer);
-    LUNA_FNPTR(none, writeBuffer, LunaGpuBuffer* buffer);
-    LUNA_FNPTR(none, bindProgram, LunaGpuProgram* program);
+    LUNA_FNPTR(u8, bindBuffer, LunaGpuBuffer* buffer);
+    LUNA_FNPTR(u8, readBuffer, LunaGpuBuffer* buffer);
+    LUNA_FNPTR(u8, writeBuffer, LunaGpuBuffer* buffer);
+    LUNA_FNPTR(u8, bindProgram, LunaGpuProgram* program);
 } LunaGpuApi;
+extern LunaGpuApi* lunaGpuApi;
 
 #endif  // __LUNA_GPUAPI_H__

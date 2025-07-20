@@ -9,7 +9,7 @@ static struct LunaEventsInternal {
 } LunaEventsInternal = {0};
 
 // global dispatch table ptr
-LunaEvents* lunaEvents = NULL;
+LunaEventApi* lunaEventApi = NULL;
 
 
 u8 registerEventImpl(LunaEventCode eventCode) {
@@ -99,50 +99,43 @@ u8 unregisterCallbackImpl(LunaEventCode eventCode, LunaEventCallback callback) {
 }
 
 
-u8 lunaInitEvents(LunaEvents* table) {
-    if (!table) {
-        r3_log_stdout(ERROR_LOG, "[LunaEvents] invalid ptr :: lunaInitEvents()\n");
-        return 0;
+u8 lunaInitEvents(none) {
+    if (lunaEventApi == NULL) {
+        lunaEventApi = r3_mem_alloc(sizeof(LunaEventApi), 8);
+        if (lunaEventApi == NULL) {
+            r3_log_stdout(ERROR_LOG, "[LunaEvents] failed to allocate lunaEventApi dispatch table!\n");
+            return 0;
+        } 
     }
 
+    lunaEventApi->pushEvent = pushEventImpl;
+    lunaEventApi->registerEvent = registerEventImpl;
+    lunaEventApi->unregisterEvent = unregisterEventImpl;
+
+    lunaEventApi->registerCallback = registerCallbackImpl;
+    lunaEventApi->unregisterCallback = unregisterCallbackImpl;
+
     FOR_I(0, LUNA_EVENT_CODES, 1) {
-        if (!registerEventImpl(i)) {
+        if (!lunaEventApi->registerEvent(i)) {
             r3_log_stdoutf(ERROR_LOG, "[LunaEvents] failed to register: %u\n", i);
         } else r3_log_stdoutf(SUCCESS_LOG, "[LunaEvents] registered: %u\n", i);
     }
 
-    table->pushEvent = pushEventImpl;
-    table->registerEvent = registerEventImpl;
-    table->unregisterEvent = unregisterEventImpl;
-
-    table->registerCallback = registerCallbackImpl;
-    table->unregisterCallback = unregisterCallbackImpl;
-
-    // assign global dispatch table ptr
-    lunaEvents = table;
-
-    r3_log_stdout(SUCCESS_LOG, "[LunaEvents] table initialized\n");
-
+    r3_log_stdout(SUCCESS_LOG, "[LunaEvents] initialized lunaEventApi\n");
     return 1;
 }
 
-u8 lunaDeinitEvents(LunaEvents* table) {
-    FOR_I(0, LUNA_EVENT_CODE_MAX, 1) {
-        if (LunaEventsInternal.eventv[i]) {
-            unregisterEventImpl(i);
+u8 lunaDeinitEvents(none) {
+    if (lunaEventApi != NULL) {
+        FOR_I(0, LUNA_EVENT_CODE_MAX, 1) {
+            if (LunaEventsInternal.eventv[i]) {
+                lunaEventApi->unregisterEvent(i);
+            }
         }
+        r3_mem_dealloc(lunaEventApi);
+        lunaEventApi = NULL;
     }
-    // null global dispatch table ptr
-    lunaEvents = NULL;
 
-    table->pushEvent = NULL;
-    table->registerEvent = NULL;
-    table->unregisterEvent = NULL;
-
-    table->registerCallback = NULL;
-    table->unregisterCallback = NULL;
-
-    r3_log_stdout(SUCCESS_LOG, "[LunaEvents] table deinitialized\n");
-
+    r3_log_stdout(SUCCESS_LOG, "[LunaEvents] deinitialized lunaEventApi\n");
     return 1;
 }

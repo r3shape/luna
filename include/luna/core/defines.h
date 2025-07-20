@@ -1,7 +1,14 @@
+#ifndef __LUNA_DEFINES_H__
+#define __LUNA_DEFINES_H__
+
 #include <include/r3kt/defines.h>
 
 #ifdef _LUNA_INTERNAL_
+    #include <include/r3kt/mem/alloc.h>
     #include <include/r3kt/mem/arena.h>
+    #include <include/r3kt/io/log.h>
+    #include <include/r3kt/io/buf.h>
+    #include <include/r3kt/ds/arr.h>
     #include <include/r3kt/math.h>
 #endif
 
@@ -9,6 +16,9 @@
 
 typedef char* str;
 typedef const char* cstr;
+
+#define LUNA_SCREEN_QUAD_VERTEX_PROGRAM ".external/.data/assets/shaders/default/screen.vert"
+#define LUNA_SCREEN_QUAD_FRAGMENT_PROGRAM  ".external/.data/assets/shaders/default/screen.frag"
 
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__)
     #define LUNA_PLATFORM_WINDOWS
@@ -32,3 +42,4 @@ typedef const char* cstr;
 
 #define LUNA_FNPTR(ret, sym, ...) ret (*sym)(__VA_ARGS__)
 
+#endif // __LUNA_DEFINES_H__

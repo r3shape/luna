@@ -1,349 +1,457 @@
+#define _LUNA_INTERNAL_
+
 #include <include/luna/core/platform.h>
 #include <include/luna/core/renderer.h>
-#include <include/luna/core/api/glapi.h>
-#include <include/luna/core/api/gpuapi.h>
-
-#include <include/r3kt/math.h>
-#include <include/r3kt/io/log.h>
-#include <include/r3kt/mem/arena.h>
+#include <include/luna/core/api/gl.h>
+#include <include/luna/core/api/gpu.h>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <include/STB/stb_image.h>
 
-// define null fnptrs
-LUNA_GLFNPTR(GLGenBuffers);
-LUNA_GLFNPTR(GLBindBuffer);
-LUNA_GLFNPTR(GLBufferData);
-LUNA_GLFNPTR(GLMapBuffer);
-LUNA_GLFNPTR(GLUnmapBuffer);
-LUNA_GLFNPTR(GLBufferSubData);
-LUNA_GLFNPTR(GLGetBufferParameteriv);
-LUNA_GLFNPTR(GLDeleteBuffers);
-LUNA_GLFNPTR(GLGenVertexArrays);
-LUNA_GLFNPTR(GLBindVertexArray);
-LUNA_GLFNPTR(GLDeleteVertexArrays);
-LUNA_GLFNPTR(GLEnableVertexAttribArray);
-LUNA_GLFNPTR(GLDisableVertexAttribArray);
-LUNA_GLFNPTR(GLVertexAttribPointer);
-LUNA_GLFNPTR(GLCreateShader);
-LUNA_GLFNPTR(GLShaderSource);
-LUNA_GLFNPTR(GLCompileShader);
-LUNA_GLFNPTR(GLDeleteShader);
-LUNA_GLFNPTR(GLGetShaderiv);
-LUNA_GLFNPTR(GLGetShaderInfoLog);
-LUNA_GLFNPTR(GLCreateProgram);
-LUNA_GLFNPTR(GLAttachShader);
-LUNA_GLFNPTR(GLDetachShader);
-LUNA_GLFNPTR(GLLinkProgram);
-LUNA_GLFNPTR(GLUseProgram);
-LUNA_GLFNPTR(GLDeleteProgram);
-LUNA_GLFNPTR(GLGetProgramiv);
-LUNA_GLFNPTR(GLGetProgramInfoLog);
-LUNA_GLFNPTR(GLGetUniformLocation);
-LUNA_GLFNPTR(GLUniform1i);
-LUNA_GLFNPTR(GLUniform1f);
-LUNA_GLFNPTR(GLUniform2fv);
-LUNA_GLFNPTR(GLUniform3fv);
-LUNA_GLFNPTR(GLUniform4fv);
-LUNA_GLFNPTR(GLUniformMatrix4fv);
-LUNA_GLFNPTR(GLGenTextures);
-LUNA_GLFNPTR(GLBindTexture);
-LUNA_GLFNPTR(GLTexParameteri);
-LUNA_GLFNPTR(GLTexImage2D);
-LUNA_GLFNPTR(GLActiveTexture);
-LUNA_GLFNPTR(GLDeleteTextures);
-LUNA_GLFNPTR(GLGenerateMipmap);
-LUNA_GLFNPTR(GLGenFramebuffers);
-LUNA_GLFNPTR(GLBindFramebuffer);
-LUNA_GLFNPTR(GLFramebufferTexture2D);
-LUNA_GLFNPTR(GLFramebufferRenderbuffer);
-LUNA_GLFNPTR(GLCheckFramebufferStatus);
-LUNA_GLFNPTR(GLDeleteFramebuffers);
-LUNA_GLFNPTR(GLGenRenderbuffers);
-LUNA_GLFNPTR(GLBindRenderbuffer);
-LUNA_GLFNPTR(GLRenderbufferStorage);
-LUNA_GLFNPTR(GLDeleteRenderbuffers);
-LUNA_GLFNPTR(GLDrawArrays);
-LUNA_GLFNPTR(GLDrawElements);
-LUNA_GLFNPTR(GLEnable);
-LUNA_GLFNPTR(GLDisable);
-LUNA_GLFNPTR(GLBlendFunc);
-LUNA_GLFNPTR(GLCullFace);
-LUNA_GLFNPTR(GLDepthFunc);
-LUNA_GLFNPTR(GLViewport);
-LUNA_GLFNPTR(GLPolygonMode);
-LUNA_GLFNPTR(GLClear);
-LUNA_GLFNPTR(GLClearColor);
-LUNA_GLFNPTR(GLClearDepth);
-LUNA_GLFNPTR(GLGetError);
-LUNA_GLFNPTR(GLGetString);
+// dispatch table ptrs
+LunaGpuApi* lunaGpuApi = NULL;
+LunaOpenGL* lunaOpenGL = NULL;
 
-// internal dispatch table ptrs
-static LunaPlatform* glapiPlatform = NULL;
-
-none clearDepthBufferImpl(f32 depth) {
-    return;
+u8 glClearDepthBufferImpl(f32 depth) {
+    lunaOpenGL->glClearDepth(depth);
+    lunaOpenGL->glClear(GL_DEPTH_BUFFER_BIT);
+    return 1;
 }
 
-none clearColorBufferImpl(Vec3 color) {
-    return;
+u8 glClearColorBufferImpl(Vec4 color) {
+    lunaOpenGL->glClearColor(color.data[0] / 255, color.data[1] / 255, color.data[2] / 255, color.data[3] / 255);
+    lunaOpenGL->glClear(GL_COLOR_BUFFER_BIT);
+    return 1;
 }
 
 
-none createProgramImpl(LunaGpuProgram* program) {
-    return;
-}
-
-none destroyProgramImpl(LunaGpuProgram* program) {
-    return;
-}
-
-
-none sendUniformImpl(str name, LunaGpuProgram* program) {
-    return;
-}
-
-none setUniformImpl(LunaGpuUniform* uniform, LunaGpuProgram* program) {
-    return;
-}
-
-
-none createVertexBufferImpl(LunaGpuBuffer* buffer) {
-    return;
-}
-
-none destroyVertexBufferImpl(LunaGpuBuffer* buffer) {
-    return;
-}
-
-
-none createElementBufferImpl(LunaGpuBuffer* buffer) {
-    return;
-}
-
-none destroyElementBufferImpl(LunaGpuBuffer* buffer) {
-    return;
-}
-
-
-none createTextureBufferImpl(LunaGpuBuffer* buffer) {
-    return;
-}
-
-none destroyTextureBufferImpl(LunaGpuBuffer* buffer) {
-    return;
-}
-
-
-none createFrameBufferImpl(LunaGpuBuffer* buffer) {
-    return;
-}
-
-none destroyFrameBufferImpl(LunaGpuBuffer* buffer) {
-    return;
-}
-
-
-none bindBufferImpl(LunaGpuBuffer* buffer) {
-    return;
-}
-
-none readBufferImpl(LunaGpuBuffer* buffer) {
-    return;
-}
-
-none writeBufferImpl(LunaGpuBuffer* buffer) {
-    return;
-}
-
-none bindProgramImpl(LunaGpuProgram* program) {
-    return;
-}
-
-
-byte lunaInitGlApi(LunaGpuApi* table, ptr platform_table) {
-    if (!table || !platform_table) {
-        r3_log_stdout(ERROR_LOG, "[glapi] invalid table ptr :: lunaInitGpuBackend()\n");
+u8 glCreateProgramImpl(LunaGpuProgram* program) {
+    if (!program || !program->vertex_buffer.data || !program->fragment_buffer.data) {
+        r3_log_stdout(ERROR_LOG, "[LunaOpenGL] invalid program passed to CreateProgram()\n");
         return 0;
     }
 
-    // assign internal dispatch table ptr
-    glapiPlatform = (LunaPlatform*)platform_table;
-
-    if (!glapiPlatform->createGLContext()) {
-        r3_log_stdout(ERROR_LOG, "[glapi] failed to create opengl context\n");
+    s32 link_status = 0;
+    s32 compile_status = 0;
+    
+    s32 vertex_shader = lunaOpenGL->glCreateShader(GLAPI_VERTEX_SHADER);
+    lunaOpenGL->glShaderSource(vertex_shader, 1, &(cstr){program->vertex_buffer.data}, NULL);
+    lunaOpenGL->glCompileShader(vertex_shader);
+    
+    lunaOpenGL->glGetShaderiv(vertex_shader, GLAPI_COMPILE_STATUS, &compile_status);
+    if (!compile_status) {
+        r3_log_stdout(INFO_LOG, "[LunaOpenGL] failed to compile vertex shader\n");
+        lunaOpenGL->glDeleteShader(vertex_shader);
         return 0;
-    } else r3_log_stdout(SUCCESS_LOG, "[glapi] created opengl context\n");
+    } else { r3_log_stdout(INFO_LOG, "[LunaOpenGL] compiled vertex shader\n"); }
+    
+    s32 fragment_shader = lunaOpenGL->glCreateShader(GLAPI_FRAGMENT_SHADER);
+    lunaOpenGL->glShaderSource(fragment_shader, 1, &(cstr){program->fragment_buffer.data}, NULL);
+    lunaOpenGL->glCompileShader(fragment_shader);
+    
+    lunaOpenGL->glGetShaderiv(fragment_shader, GLAPI_COMPILE_STATUS, &compile_status);
+    if (!compile_status) {
+        r3_log_stdout(INFO_LOG, "[LunaOpenGL] failed to compile fragment shader\n");
+        lunaOpenGL->glDeleteShader(vertex_shader);
+        lunaOpenGL->glDeleteShader(fragment_shader);
+        return 0;
+    } else { r3_log_stdout(INFO_LOG, "[LunaOpenGL] compiled fragment shader\n"); }
+        
+    program->program = lunaOpenGL->glCreateProgram();
+    lunaOpenGL->glAttachShader(program->program, vertex_shader);
+    lunaOpenGL->glAttachShader(program->program, fragment_shader);
+    lunaOpenGL->glLinkProgram(program->program);
 
+    lunaOpenGL->glGetProgramiv(program->program, GLAPI_LINK_STATUS, &link_status);
+    if (!link_status) {
+        r3_log_stdout(INFO_LOG, "[LunaOpenGL] failed to link program\n");
+        lunaOpenGL->glDeleteShader(vertex_shader);
+        lunaOpenGL->glDeleteShader(fragment_shader);
+        return 0;
+    }
+
+    lunaOpenGL->glDeleteShader(vertex_shader);
+    lunaOpenGL->glDeleteShader(fragment_shader);
+    return 1;
+}
+
+u8 glDestroyProgramImpl(LunaGpuProgram* program) {
+    if (!program || !program->program || !program->uniformv.data) {
+        r3_log_stdout(ERROR_LOG, "[LunaOpenGL] invalid program passed to DestroyProgram()\n");
+        return 0;
+    }
+    r3_arr_hashed_dealloc(&program->uniformv);
+    lunaOpenGL->glDeleteProgram(program->program);
+    return 1;
+}
+
+
+u8 glSendUniformImpl(cstr name, LunaGpuProgram* program) {
+    if (!program || !program->program || !program->uniformv.data) {
+        r3_log_stdout(ERROR_LOG, "[LunaOpenGL] invalid program passed to SendUniform()\n");
+        return 0;
+    } 
+    
+    LunaGpuUniform uniform = {0};
+    if (!r3_arr_hashed_read(name, &uniform, &program->uniformv)){
+        r3_log_stdoutf(ERROR_LOG, "[LunaOpenGL]  failed to read from uniform array: (uniform)%s\n", name);
+        return 0;
+    }
+        
+    if (strcmp(uniform.name, name) != 0) {
+        r3_log_stdoutf(ERROR_LOG, "[LunaOpenGL]  uniform not found: (uniform)%s\n", name);
+        return 0;
+    }
+
+    switch (uniform.type) {
+        case LUNA_UNIFORM_INVALID: break;
+        case LUNA_UNIFORM_TYPES: break;
+        case LUNA_UNIFORM_INT: {
+            lunaOpenGL->glUniform1i(uniform.location, uniform.s32);
+            r3_log_stdoutf(SUCCESS_LOG, "[LunaOpenGL] sent int uniform: (uniform)%s\n", name);
+            return 1;
+        }
+        case LUNA_UNIFORM_FLOAT: {
+            lunaOpenGL->glUniform1f(uniform.location, uniform.f32);
+            r3_log_stdoutf(SUCCESS_LOG, "[LunaOpenGL] sent float uniform: (uniform)%s\n", name);
+            return 1;
+        }
+        case LUNA_UNIFORM_VEC2: {
+            lunaOpenGL->glUniform2fv(uniform.location, 1, (f32*)uniform.vec2.data);
+            r3_log_stdoutf(SUCCESS_LOG, "[LunaOpenGL] sent vec2 uniform: (uniform)%s\n", name);
+            return 1;
+        }
+        case LUNA_UNIFORM_VEC3: {
+            lunaOpenGL->glUniform2fv(uniform.location, 1, (f32*)uniform.vec3.data);
+            r3_log_stdoutf(SUCCESS_LOG, "[LunaOpenGL] sent vec3 uniform: (uniform)%s\n", name);
+            return 1;
+        }
+        case LUNA_UNIFORM_VEC4: {
+            lunaOpenGL->glUniform2fv(uniform.location, 1, (f32*)uniform.vec4.data);
+            r3_log_stdoutf(SUCCESS_LOG, "[LunaOpenGL] sent vec4 uniform: (uniform)%s\n", name);
+            return 1;
+        }
+        case LUNA_UNIFORM_MAT4: {
+            lunaOpenGL->glUniformMatrix4fv(uniform.location, 1, 0, (f32*)uniform.mat4.data);
+            r3_log_stdoutf(SUCCESS_LOG, "[LunaOpenGL] sent mat4 uniform: (uniform)%s\n", name);
+            return 1;
+        }
+        default: break;
+    }
+    
+    return 0;
+}
+
+u8 glSetUniformImpl(LunaGpuUniform* uniform, LunaGpuProgram* program) {
+    if (!program || !program->program || !program->uniformv.data) {
+        r3_log_stdout(ERROR_LOG, "[LunaOpenGL] invalid program passed to SetUniform()\n");
+        return 0;
+    } if (!uniform || !uniform->name || !uniform->type || uniform->type >= LUNA_UNIFORM_TYPES) {
+        r3_log_stdout(ERROR_LOG, "[LunaOpenGL] invalid uniform passed to SetUniform()\n");
+        return 0;
+    }
+
+    if (!uniform->location) { uniform->location = lunaOpenGL->glGetUniformLocation(program->program, uniform->name); }
+
+    if (!r3_arr_hashed_write(uniform->name, uniform, &program->uniformv)) {
+        r3_log_stdoutf(ERROR_LOG, "[LunaOpenGL] failed to write to uniform array: (uniform)%s (type)%d\n", uniform->name, uniform->type);
+        return 0;
+    } else { r3_log_stdoutf(INFO_LOG, "[LunaOpenGL] wrote to uniform array: (uniform)%s (type)%d\n", uniform->name, uniform->type); }
+
+    return 1;
+}
+
+
+u8 glCreateVertexBufferImpl(LunaGpuBuffer* buffer) {
+    if (
+        !buffer ||
+        buffer->type != LUNA_BUFFER_VERTEX ||
+        !buffer->vertex.vertexv || !buffer->vertex.attribs || 
+        !buffer->vertex.vertices || ((buffer->vertex.attribs & ~((1 << LUNA_VERTEX_ATTRIBUTES) - 1)) != 0)
+    ) return 0;
+
+    lunaOpenGL->glGenVertexArrays(1, &buffer->vertex.vao);
+    lunaOpenGL->glGenBuffers(1, &buffer->vertex.vbo);
+
+    lunaOpenGL->glBindVertexArray(buffer->vertex.vao);
+    lunaOpenGL->glBindBuffer(GLAPI_ARRAY_BUFFER, buffer->vertex.vbo);
+
+    // configure vertex attributes
+    u32 stride = 0;
+    u32 attrib_offsets[LUNA_VERTEX_ATTRIBUTES] = {0};
+
+    // location (vec3), texture (vec2), normal (vec3), color (vec3)
+    const u32 attrib_sizes[LUNA_VERTEX_ATTRIBUTES] = {3, 2, 3, 3};
+
+    FOR_I(0, LUNA_VERTEX_ATTRIBUTES, 1) {
+        if ((buffer->vertex.attribs & (1 << i)) != 0) {
+            // accumulate stride for enabled vertex attributes
+            attrib_offsets[i] = stride;
+            stride += attrib_sizes[i];
+        }
+    }
+
+    buffer->vertex.vertices = buffer->vertex.size / stride;
+    lunaOpenGL->glBufferData(GLAPI_ARRAY_BUFFER, buffer->vertex.vertices, buffer->vertex.vertexv, GLAPI_STATIC_DRAW);
+
+    // enable vertex attributes
+    FOR_I(0, LUNA_VERTEX_ATTRIBUTES, 1) {
+        if ((buffer->vertex.attribs & (1 << i)) != 0) {
+            lunaOpenGL->glVertexAttribPointer(
+                i,
+                attrib_sizes[i],
+                GL_FLOAT,
+                GL_FALSE,
+                stride * sizeof(f32),
+                (ptr)(attrib_offsets[i] * sizeof(f32))
+            ); lunaOpenGL->glEnableVertexAttribArray(i);
+        }
+    }
+
+    lunaOpenGL->glBindBuffer(GLAPI_ARRAY_BUFFER, 0);
+    lunaOpenGL->glBindVertexArray(0);
+
+    return 1;
+}
+
+u8 glDestroyVertexBufferImpl(LunaGpuBuffer* buffer) {
+    if (!buffer || buffer->type != LUNA_BUFFER_VERTEX || !buffer->vertex.vertices) return 0;
+
+    lunaOpenGL->glDeleteVertexArrays(1, &buffer->vertex.vao);
+    lunaOpenGL->glDeleteBuffers(1, &buffer->vertex.vbo);
+
+    buffer->vertex.vbo = 0;
+    buffer->vertex.vao = 0;
+    buffer->vertex.attribs = 0;
+    buffer->vertex.vertices = 0;
+    buffer->vertex.vertexv = NULL;
+
+    return 1;
+}
+
+
+u8 glCreateElementBufferImpl(LunaGpuBuffer* buffer) {
+    return 1;
+}
+
+u8 glDestroyElementBufferImpl(LunaGpuBuffer* buffer) {
+    return 1;
+}
+
+
+u8 glCreateTextureBufferImpl(LunaGpuBuffer* buffer) {
+    return 1;
+}
+
+u8 glDestroyTextureBufferImpl(LunaGpuBuffer* buffer) {
+    return 1;
+}
+
+
+u8 glCreateFrameBufferImpl(LunaGpuBuffer* buffer) {
+    return 1;
+}
+
+u8 glDestroyFrameBufferImpl(LunaGpuBuffer* buffer) {
+    return 1;
+}
+
+
+u8 glBindBufferImpl(LunaGpuBuffer* buffer) {
+    return 1;
+}
+
+u8 glReadBufferImpl(LunaGpuBuffer* buffer) {
+    return 1;
+}
+
+u8 glWriteBufferImpl(LunaGpuBuffer* buffer) {
+    return 1;
+}
+
+u8 glBindProgramImpl(LunaGpuProgram* program) {
+    return 1;
+}
+
+
+u8 lunaInitOpenGL(none) {
+    if (lunaPlatformApi == NULL) {
+        r3_log_stdout(ERROR_LOG, "[LunaOpenGL] LunaPlatformApi not initialized!\n");
+        return 0;
+    }
+
+    if (lunaGpuApi == NULL) {
+        lunaGpuApi = r3_mem_alloc(sizeof(LunaGpuApi), 8);
+        if (lunaGpuApi == NULL) {
+            r3_log_stdout(ERROR_LOG, "[LunaOpenGL] failed to allocate lunaGpuApi dispatch table!\n");
+            return 0;
+        }
+    }
+
+    if (lunaOpenGL == NULL) {
+        lunaOpenGL = r3_mem_alloc(sizeof(LunaOpenGL), 8);
+        if (lunaOpenGL == NULL) {
+            r3_log_stdout(ERROR_LOG, "[LunaOpenGL] failed to allocate lunaOpenGL dispatch table!\n");
+            r3_mem_dealloc(lunaGpuApi);
+            return 0;
+        }
+    }
+
+    if (!lunaPlatformApi->createGLContext()) {
+        r3_log_stdout(ERROR_LOG, "[LunaOpenGL] failed to create opengl context\n");
+        return 0;
+    } else r3_log_stdout(SUCCESS_LOG, "[LunaOpenGL] created opengl context\n");
+    
     // glapi
     LunaLibrary opengl32;
-    if (!glapiPlatform->loadLibrary(NULL, "opengl32", &opengl32)) {
-        r3_log_stdout(ERROR_LOG, "[glapi] failed to load opengl\n");
+    if (!lunaPlatformApi->loadLibrary(NULL, "opengl32", &opengl32)) {
+        r3_log_stdout(ERROR_LOG, "[LunaOpenGL] failed to load opengl\n");
         return 0;
-    }  else r3_log_stdoutf(SUCCESS_LOG, "[glapi] loaded opengl v%s", glGetString(GL_VERSION));
+    }  else r3_log_stdoutf(SUCCESS_LOG, "[LunaOpenGL] loaded opengl v%s %s %s\n", glGetString(GL_VERSION), glGetString(GL_VENDOR), glGetString(GL_RENDERER));
 
     struct gl_func {
         ptr* function;
         str name;
     } functions[] = {
         // BUFFER FUNCTIONS
-        {(ptr*)&GLGenBuffers, "glGenBuffers"},
-        {(ptr*)&GLBindBuffer, "glBindBuffer"},
-        {(ptr*)&GLBufferData, "glBufferData"},
-        {(ptr*)&GLMapBuffer, "glMapBuffer"},
-        {(ptr*)&GLUnmapBuffer, "glUnmapBuffer"},
-        {(ptr*)&GLBufferSubData, "glBufferSubData"},
-        {(ptr*)&GLGetBufferParameteriv, "glGetBufferParameteriv"},
-        {(ptr*)&GLDeleteBuffers, "glDeleteBuffers"},
+        {(ptr*)&lunaOpenGL->glGenBuffers, "glGenBuffers"},
+        {(ptr*)&lunaOpenGL->glBindBuffer, "glBindBuffer"},
+        {(ptr*)&lunaOpenGL->glBufferData, "glBufferData"},
+        {(ptr*)&lunaOpenGL->glMapBuffer, "glMapBuffer"},
+        {(ptr*)&lunaOpenGL->glUnmapBuffer, "glUnmapBuffer"},
+        {(ptr*)&lunaOpenGL->glBufferSubData, "glBufferSubData"},
+        {(ptr*)&lunaOpenGL->glGetBufferParameteriv, "glGetBufferParameteriv"},
+        {(ptr*)&lunaOpenGL->glDeleteBuffers, "glDeleteBuffers"},
 
         // VAO FUNCTIONS
-        {(ptr*)&GLGenVertexArrays, "glGenVertexArrays"},
-        {(ptr*)&GLBindVertexArray, "glBindVertexArray"},
-        {(ptr*)&GLDeleteVertexArrays, "glDeleteVertexArrays"},
-        {(ptr*)&GLEnableVertexAttribArray, "glEnableVertexAttribArray"},
-        {(ptr*)&GLDisableVertexAttribArray, "glDisableVertexAttribArray"},
-        {(ptr*)&GLVertexAttribPointer, "glVertexAttribPointer"},
+        {(ptr*)&lunaOpenGL->glGenVertexArrays, "glGenVertexArrays"},
+        {(ptr*)&lunaOpenGL->glBindVertexArray, "glBindVertexArray"},
+        {(ptr*)&lunaOpenGL->glDeleteVertexArrays, "glDeleteVertexArrays"},
+        {(ptr*)&lunaOpenGL->glEnableVertexAttribArray, "glEnableVertexAttribArray"},
+        {(ptr*)&lunaOpenGL->glDisableVertexAttribArray, "glDisableVertexAttribArray"},
+        {(ptr*)&lunaOpenGL->glVertexAttribPointer, "glVertexAttribPointer"},
 
         // SHADER FUNCTIONS
-        {(ptr*)&GLCreateShader, "glCreateShader"},
-        {(ptr*)&GLShaderSource, "glShaderSource"},
-        {(ptr*)&GLCompileShader, "glCompileShader"},
-        {(ptr*)&GLDeleteShader, "glDeleteShader"},
-        {(ptr*)&GLGetShaderiv, "glGetShaderiv"},
-        {(ptr*)&GLGetShaderInfoLog, "glGetShaderInfoLog"},
+        {(ptr*)&lunaOpenGL->glCreateShader, "glCreateShader"},
+        {(ptr*)&lunaOpenGL->glShaderSource, "glShaderSource"},
+        {(ptr*)&lunaOpenGL->glCompileShader, "glCompileShader"},
+        {(ptr*)&lunaOpenGL->glDeleteShader, "glDeleteShader"},
+        {(ptr*)&lunaOpenGL->glGetShaderiv, "glGetShaderiv"},
+        {(ptr*)&lunaOpenGL->glGetShaderInfoLog, "glGetShaderInfoLog"},
 
-        {(ptr*)&GLCreateProgram, "glCreateProgram"},
-        {(ptr*)&GLAttachShader, "glAttachShader"},
-        {(ptr*)&GLDetachShader, "glDetachShader"},
-        {(ptr*)&GLLinkProgram, "glLinkProgram"},
-        {(ptr*)&GLUseProgram, "glUseProgram"},
-        {(ptr*)&GLDeleteProgram, "glDeleteProgram"},
-        {(ptr*)&GLGetProgramiv, "glGetProgramiv"},
-        {(ptr*)&GLGetProgramInfoLog, "glGetProgramInfoLog"},
-        {(ptr*)&GLGetUniformLocation, "glGetUniformLocation"},
+        {(ptr*)&lunaOpenGL->glCreateProgram, "glCreateProgram"},
+        {(ptr*)&lunaOpenGL->glAttachShader, "glAttachShader"},
+        {(ptr*)&lunaOpenGL->glDetachShader, "glDetachShader"},
+        {(ptr*)&lunaOpenGL->glLinkProgram, "glLinkProgram"},
+        {(ptr*)&lunaOpenGL->glUseProgram, "glUseProgram"},
+        {(ptr*)&lunaOpenGL->glDeleteProgram, "glDeleteProgram"},
+        {(ptr*)&lunaOpenGL->glGetProgramiv, "glGetProgramiv"},
+        {(ptr*)&lunaOpenGL->glGetProgramInfoLog, "glGetProgramInfoLog"},
+        {(ptr*)&lunaOpenGL->glGetUniformLocation, "glGetUniformLocation"},
 
         // UNIFORMS
-        {(ptr*)&GLUniform1i, "glUniform1i"},
-        {(ptr*)&GLUniform1f, "glUniform1f"},
-        {(ptr*)&GLUniform2fv, "glUniform2fv"},
-        {(ptr*)&GLUniform3fv, "glUniform3fv"},
-        {(ptr*)&GLUniform4fv, "glUniform4fv"},
-        {(ptr*)&GLUniformMatrix4fv, "glUniformMatrix4fv"},
+        {(ptr*)&lunaOpenGL->glUniform1i, "glUniform1i"},
+        {(ptr*)&lunaOpenGL->glUniform1f, "glUniform1f"},
+        {(ptr*)&lunaOpenGL->glUniform2fv, "glUniform2fv"},
+        {(ptr*)&lunaOpenGL->glUniform3fv, "glUniform3fv"},
+        {(ptr*)&lunaOpenGL->glUniform4fv, "glUniform4fv"},
+        {(ptr*)&lunaOpenGL->glUniformMatrix4fv, "glUniformMatrix4fv"},
 
         // TEXTURES
-        {(ptr*)&GLGenTextures, "glGenTextures"},
-        {(ptr*)&GLBindTexture, "glBindTexture"},
-        {(ptr*)&GLTexParameteri, "glTexParameteri"},
-        {(ptr*)&GLTexImage2D, "glTexImage2D"},
-        {(ptr*)&GLActiveTexture, "glActiveTexture"},
-        {(ptr*)&GLDeleteTextures, "glDeleteTextures"},
-        {(ptr*)&GLGenerateMipmap, "glGenerateMipmap"},
+        {(ptr*)&lunaOpenGL->glGenTextures, "glGenTextures"},
+        {(ptr*)&lunaOpenGL->glBindTexture, "glBindTexture"},
+        {(ptr*)&lunaOpenGL->glTexParameteri, "glTexParameteri"},
+        {(ptr*)&lunaOpenGL->glTexImage2D, "glTexImage2D"},
+        {(ptr*)&lunaOpenGL->glActiveTexture, "glActiveTexture"},
+        {(ptr*)&lunaOpenGL->glDeleteTextures, "glDeleteTextures"},
+        {(ptr*)&lunaOpenGL->glGenerateMipmap, "glGenerateMipmap"},
 
         // FRAMEBUFFERS + RENDERBUFFERS
-        {(ptr*)&GLGenFramebuffers, "glGenFramebuffers"},
-        {(ptr*)&GLBindFramebuffer, "glBindFramebuffer"},
-        {(ptr*)&GLFramebufferTexture2D, "glFramebufferTexture2D"},
-        {(ptr*)&GLFramebufferRenderbuffer, "glFramebufferRenderbuffer"},
-        {(ptr*)&GLCheckFramebufferStatus, "glCheckFramebufferStatus"},
-        {(ptr*)&GLDeleteFramebuffers, "glDeleteFramebuffers"},
+        {(ptr*)&lunaOpenGL->glGenFramebuffers, "glGenFramebuffers"},
+        {(ptr*)&lunaOpenGL->glBindFramebuffer, "glBindFramebuffer"},
+        {(ptr*)&lunaOpenGL->glFramebufferTexture2D, "glFramebufferTexture2D"},
+        {(ptr*)&lunaOpenGL->glFramebufferRenderbuffer, "glFramebufferRenderbuffer"},
+        {(ptr*)&lunaOpenGL->glCheckFramebufferStatus, "glCheckFramebufferStatus"},
+        {(ptr*)&lunaOpenGL->glDeleteFramebuffers, "glDeleteFramebuffers"},
 
-        {(ptr*)&GLGenRenderbuffers, "glGenRenderbuffers"},
-        {(ptr*)&GLBindRenderbuffer, "glBindRenderbuffer"},
-        {(ptr*)&GLRenderbufferStorage, "glRenderbufferStorage"},
-        {(ptr*)&GLDeleteRenderbuffers, "glDeleteRenderbuffers"},
+        {(ptr*)&lunaOpenGL->glGenRenderbuffers, "glGenRenderbuffers"},
+        {(ptr*)&lunaOpenGL->glBindRenderbuffer, "glBindRenderbuffer"},
+        {(ptr*)&lunaOpenGL->glRenderbufferStorage, "glRenderbufferStorage"},
+        {(ptr*)&lunaOpenGL->glDeleteRenderbuffers, "glDeleteRenderbuffers"},
 
         // DRAWING
-        {(ptr*)&GLDrawArrays, "glDrawArrays"},
-        {(ptr*)&GLDrawElements, "glDrawElements"},
+        {(ptr*)&lunaOpenGL->glDrawArrays, "glDrawArrays"},
+        {(ptr*)&lunaOpenGL->glDrawElements, "glDrawElements"},
 
         // STATE
-        {(ptr*)&GLEnable, "glEnable"},
-        {(ptr*)&GLDisable, "glDisable"},
-        {(ptr*)&GLBlendFunc, "glBlendFunc"},
-        {(ptr*)&GLCullFace, "glCullFace"},
-        {(ptr*)&GLDepthFunc, "glDepthFunc"},
-        {(ptr*)&GLViewport, "glViewport"},
-        {(ptr*)&GLPolygonMode, "glPolygonMode"},
-        {(ptr*)&GLClear, "glClear"},
-        {(ptr*)&GLClearColor, "glClearColor"},
-        {(ptr*)&GLClearDepth, "glClearDepth"},
+        {(ptr*)&lunaOpenGL->glEnable, "glEnable"},
+        {(ptr*)&lunaOpenGL->glDisable, "glDisable"},
+        {(ptr*)&lunaOpenGL->glBlendFunc, "glBlendFunc"},
+        {(ptr*)&lunaOpenGL->glCullFace, "glCullFace"},
+        {(ptr*)&lunaOpenGL->glDepthFunc, "glDepthFunc"},
+        {(ptr*)&lunaOpenGL->glViewport, "glViewport"},
+        {(ptr*)&lunaOpenGL->glPolygonMode, "glPolygonMode"},
+        {(ptr*)&lunaOpenGL->glClear, "glClear"},
+        {(ptr*)&lunaOpenGL->glClearColor, "glClearColor"},
+        {(ptr*)&lunaOpenGL->glClearDepth, "glClearDepth"},
 
         // INFO / DEBUG
-        {(ptr*)&GLGetError, "glGetError"},
-        {(ptr*)&GLGetString, "glGetString"}
+        {(ptr*)&lunaOpenGL->glGetError, "glGetError"},
+        {(ptr*)&lunaOpenGL->glGetString, "glGetString"}
     };
 
     FOR_I(0, sizeof(functions) / sizeof(functions[0]), 1) {
-        if (!glapiPlatform->loadLibrarySymbol(functions[i].name, functions[i].function, &opengl32)) {
-            r3_log_stdoutf(WARN_LOG, "[glapi] failed to load function: %s\n", functions[i].name);
-        } else r3_log_stdoutf(SUCCESS_LOG, "[glapi] loaded function: %s\n", functions[i].name);
+        if (!lunaPlatformApi->loadLibrarySymbol(functions[i].name, functions[i].function, &opengl32) || *functions[i].function == NULL) {
+            r3_log_stdoutf(WARN_LOG, "[LunaOpenGL] failed to load function: (name)%s\n", functions[i].name);
+        } else r3_log_stdoutf(SUCCESS_LOG, "[LunaOpenGL] loaded function: (name)%s (ptr)%p\n", functions[i].name, *(functions[i].function));
     }
-    
-    glapiPlatform->unloadLibrary(&opengl32);
+
+    lunaPlatformApi->unloadLibrary(&opengl32);
 
     // gpuapi
-    table->clearDepthBuffer = clearDepthBufferImpl;
-    table->clearColorBuffer = clearColorBufferImpl;
+    lunaGpuApi->clearDepthBuffer = glClearDepthBufferImpl;
+    lunaGpuApi->clearColorBuffer = glClearColorBufferImpl;
     
-    table->createProgram = createProgramImpl;
-    table->destroyProgram = destroyProgramImpl;
+    lunaGpuApi->createProgram = glCreateProgramImpl;
+    lunaGpuApi->destroyProgram = glDestroyProgramImpl;
     
-    table->sendUniform = sendUniformImpl;
-    table->setUniform = setUniformImpl;
+    lunaGpuApi->sendUniform = glSendUniformImpl;
+    lunaGpuApi->setUniform = glSetUniformImpl;
     
-    table->createVertexBuffer = createVertexBufferImpl;
-    table->destroyVertexBuffer = destroyVertexBufferImpl;
+    lunaGpuApi->createVertexBuffer = glCreateVertexBufferImpl;
+    lunaGpuApi->destroyVertexBuffer = glDestroyVertexBufferImpl;
     
-    table->createElementBuffer = createElementBufferImpl;
-    table->destroyElementBuffer = destroyElementBufferImpl;
+    lunaGpuApi->createElementBuffer = glCreateElementBufferImpl;
+    lunaGpuApi->destroyElementBuffer = glDestroyElementBufferImpl;
     
-    table->createTextureBuffer = createTextureBufferImpl;
-    table->destroyTextureBuffer = destroyTextureBufferImpl;
+    lunaGpuApi->createTextureBuffer = glCreateTextureBufferImpl;
+    lunaGpuApi->destroyTextureBuffer = glDestroyTextureBufferImpl;
     
-    table->createFrameBuffer = createFrameBufferImpl;
-    table->destroyFrameBuffer = destroyFrameBufferImpl;
+    lunaGpuApi->createFrameBuffer = glCreateFrameBufferImpl;
+    lunaGpuApi->destroyFrameBuffer = glDestroyFrameBufferImpl;
     
-    table->bindBuffer = bindBufferImpl;
-    table->readBuffer = readBufferImpl;
-    table->writeBuffer = writeBufferImpl;
-    table->bindProgram = bindProgramImpl;
+    lunaGpuApi->bindBuffer = glBindBufferImpl;
+    lunaGpuApi->readBuffer = glReadBufferImpl;
+    lunaGpuApi->writeBuffer = glWriteBufferImpl;
+    lunaGpuApi->bindProgram = glBindProgramImpl;
 
+    r3_log_stdout(SUCCESS_LOG, "[LunaOpenGL] initialized LunaOpenGL + LunaGpuApi\n");
     return 1;
 }
 
-byte lunaDeinitGlApi(LunaGpuApi* table) {
-    if (!table) {
-        r3_log_stdout(WARN_LOG, "[glapi] invalid table ptr :: lunaInitGpuBackend()\n");
-        return 0;
+u8 lunaDeinitOpenGL(none) {
+    if (lunaGpuApi != NULL) {
+        r3_mem_dealloc(lunaGpuApi);
+        lunaGpuApi = NULL;
+    }
+    
+    if (lunaOpenGL != NULL) {
+        r3_mem_dealloc(lunaOpenGL);
+        lunaOpenGL = NULL;
     }
 
-    glapiPlatform->destroyGLContext();
+    lunaPlatformApi->destroyGLContext();
 
-    table->clearDepthBuffer = NULL;
-    table->clearColorBuffer = NULL;
-
-    table->createProgram = NULL;
-    table->destroyProgram = NULL;
-
-    table->sendUniform = NULL;
-    table->setUniform = NULL;
-
-    table->createVertexBuffer = NULL;
-    table->destroyVertexBuffer = NULL;
-
-    table->createElementBuffer = NULL;
-    table->destroyElementBuffer = NULL;
-
-    table->createTextureBuffer = NULL;
-    table->destroyTextureBuffer = NULL;
-
-    table->createFrameBuffer = NULL;
-    table->destroyFrameBuffer = NULL;
-
-    table->bindBuffer = NULL;
-    table->readBuffer = NULL;
-    table->writeBuffer = NULL;
-    table->bindProgram = NULL;
-
+    r3_log_stdout(SUCCESS_LOG, "[LunaOpenGL] deinitialized LunaOpenGL + LunaGpuApi\n");
     return 1;
 }

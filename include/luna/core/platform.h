@@ -1,8 +1,7 @@
 #ifndef __LUNA_PLATFORM_H__
 #define __LUNA_PLATFORM_H__
 
-#include <include/r3kt/math.h>
-#include <include/r3kt/io/log.h>
+#define _LUNA_INTERNAL_
 #include <include/luna/core/defines.h>
 
 typedef enum LunaWindowFlag {
@@ -25,7 +24,7 @@ typedef struct LunaLibrary {
     ptr handle;
 } LunaLibrary;
 
-typedef struct LunaPlatform {
+typedef struct LunaPlatformApi {
     LUNA_FNPTR(u8, createWindow, str title, u32 width, u32 height, u32 x, u32 y, LunaWindow* window);
     LUNA_FNPTR(none, destroyWindow, none);
 
@@ -43,9 +42,10 @@ typedef struct LunaPlatform {
     LUNA_FNPTR(u8, unloadLibrary, LunaLibrary* library);
     LUNA_FNPTR(u8, loadLibrary, str path, str name, LunaLibrary* library);
     LUNA_FNPTR(u8, loadLibrarySymbol, str name, ptr* symbol, LunaLibrary* library);
-} LunaPlatform;
+} LunaPlatformApi;
+LUNA_API LunaPlatformApi* lunaPlatformApi;
 
-LUNA_API u8 lunaInitPlatform(LunaPlatform* table, ptr events_table, ptr inputs_table);
-LUNA_API u8 lunaDeinitPlatform(LunaPlatform* table);
+LUNA_API u8 lunaInitPlatform(none);
+LUNA_API u8 lunaDeinitPlatform(none);
 
 #endif // __LUNA_PLATFORM_H__

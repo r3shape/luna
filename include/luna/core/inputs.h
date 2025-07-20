@@ -1,6 +1,7 @@
 #ifndef __LUNA_INPUTS_H__
 #define __LUNA_INPUTS_H__
 
+#define _LUNA_INTERNAL_
 #include <include/luna/core/defines.h>
 
 #define LUNA_DEFINE_KEY(name, code) LUNA_KEY_##name = code
@@ -132,7 +133,7 @@ typedef enum LunaKeyboardKey {
     LUNA_MAX_KEYS = 256
 } LunaKeyboardKey;
 
-typedef struct LunaInputs {
+typedef struct LunaInputApi {
     none (*processMouseWheelInput)(s8 z);
     none (*processMouseMoveInput)(s16 x, s16 y);
     none (*processKeyInput)(LunaKeyboardKey key, u8 pressed);
@@ -153,10 +154,10 @@ typedef struct LunaInputs {
 
     none (*mouseGetPosition)(s16* x, s16* y);
     none (*mouseGetLastPosition)(s16* x, s16* y);
-} LunaInputs;
-extern LunaInputs* lunaInputs;
+} LunaInputApi;
+LUNA_API LunaInputApi* lunaInputApi;
 
-LUNA_API u8 lunaInitInputs(LunaInputs* table, ptr events_table);
-LUNA_API u8 lunaDeinitInputs(LunaInputs* table);
+LUNA_API u8 lunaInitInputs(none);
+LUNA_API u8 lunaDeinitInputs(none);
 
 #endif // __LUNA_INPUTS_H__
