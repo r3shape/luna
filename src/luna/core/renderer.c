@@ -415,11 +415,19 @@ none renderImpl(none) {
 
             // send program uniforms
             FOR(u32, pu, 0, program->uniforms, 1) {
+                lunaGpuApi->setUniform(&((LunaGpuUniform*)program->uniformv.data)[pu], program);
                 lunaGpuApi->sendUniform(((LunaGpuUniform*)program->uniformv.data)[pu].name, program);
             }
             
+            // send phase uniforms
+            FOR(u32, phu, 0, phase->uniforms, 1) {
+                lunaGpuApi->setUniform(&phase->uniformv[phu], program);
+                lunaGpuApi->sendUniform(phase->uniformv[phu].name, program);
+            }
+
             // send call uniforms
             FOR(u32, cu, 0, call->uniforms, 1) {
+                lunaGpuApi->setUniform(&call->uniformv[cu], program);
                 lunaGpuApi->sendUniform(call->uniformv[cu].name, program);
             }
 
