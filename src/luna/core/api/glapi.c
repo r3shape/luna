@@ -122,12 +122,12 @@ u8 glSendUniformImpl(cstr name, LunaGpuProgram* program) {
             return 1;
         }
         case LUNA_UNIFORM_VEC3: {
-            lunaOpenGL->glUniform2fv(uniform.location, 1, ((f32*)&uniform.vec3.data[0]));
+            lunaOpenGL->glUniform3fv(uniform.location, 1, ((f32*)&uniform.vec3.data[0]));
             r3_log_stdoutf(SUCCESS_LOG, "[LunaOpenGL] sent vec3 uniform: (uniform)%s (location)%d\n", name, uniform.location);
             return 1;
         }
         case LUNA_UNIFORM_VEC4: {
-            lunaOpenGL->glUniform2fv(uniform.location, 1, ((f32*)&uniform.vec4.data[0]));
+            lunaOpenGL->glUniform4fv(uniform.location, 1, ((f32*)&uniform.vec4.data[0]));
             r3_log_stdoutf(SUCCESS_LOG, "[LunaOpenGL] sent vec4 uniform: (uniform)%s (location)%d\n", name, uniform.location);
             return 1;
         }
