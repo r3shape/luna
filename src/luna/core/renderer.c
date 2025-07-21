@@ -112,20 +112,17 @@ LunaGpuHandle createPhaseImpl(LunaGpuPhase phase) {
 
     LunaGpuHandle handle = LunaRendererInternal.frame.phases++;
     LunaGpuPhase* phase_ptr = &LunaRendererInternal.frame.phasev[handle];
+    
+    phase_ptr->handle = handle;
+    phase_ptr->writes = 0;
+    phase_ptr->reads = 0;
+    *phase_ptr = phase;
 
     if (!r3_mem_set(sizeof(LunaGpuHandle) * 8, 0, phase_ptr->readv) ||
-        !r3_mem_set(sizeof(LunaGpuHandle) * 8, 0, phase_ptr->writev) ||
-        !r3_mem_set(sizeof(LunaGpuUniform) * 4, 0, phase_ptr->uniformv)) {
+        !r3_mem_set(sizeof(LunaGpuHandle) * 8, 0, phase_ptr->writev)) {
             r3_log_stdout(WARN_LOG, "[LunaRenderer] failed to zero phase dependency arrays!\n");
     }
     
-    *phase_ptr = (LunaGpuPhase){ .handle = handle, .type = phase.type, .writes = 0, .reads = 0, .uniforms = phase.uniforms };
-
-    if (phase_ptr->uniforms && !r3_mem_write((sizeof(LunaGpuUniform) * phase_ptr->uniforms), phase.uniformv, &phase_ptr->uniformv)) {
-        r3_log_stdout(ERROR_LOG, "[LunaRenderer] failed to write uniform array into memory\n");;
-        return I32_MAX;
-    }
-
     switch (phase.type) {
         case (LUNA_PHASE_DEPTH): {
             phase_ptr->depth.clear_depth = phase.depth.clear_depth;
@@ -439,7 +436,12 @@ none renderImpl(none) {
                 lunaGpuApi->bindBuffer(&LunaRendererInternal.bufferv[pipeline->bindv[b]]);
             }
             
-            // send per-phase uniforms
+            // send per-pipeline uniforms
+            FOR(u32, pu, 0, pipeline->uniforms, 1) {
+                lunaGpuApi->sendUniform(pipeline->uniformv[pu].name, program);
+            }
+            
+            // set + send per-phase uniforms
             FOR(u32, phu, 0, phase->uniforms, 1) {
                 lunaGpuApi->setUniform(&phase->uniformv[phu], program);
                 lunaGpuApi->sendUniform(phase->uniformv[phu].name, program);
@@ -447,7 +449,6 @@ none renderImpl(none) {
 
             // send per-call uniforms
             FOR(u32, cu, 0, call->uniforms, 1) {
-                lunaGpuApi->setUniform(&call->uniformv[cu], program);
                 lunaGpuApi->sendUniform(call->uniformv[cu].name, program);
             }
 

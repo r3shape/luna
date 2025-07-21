@@ -27,7 +27,10 @@ void init(void) {
 
     pipeline_handle = lunaRenderApi->createPipeline((LunaGpuPipeline){
         .binds = 0,
-        .uniforms = 0,
+        .uniforms = 1,
+        .uniformv = {
+            { .type=LUNA_UNIFORM_MAT4, .mat4=IDENTITY(), .name="u_model" }
+        },
         .program = program_handle
     });
 
