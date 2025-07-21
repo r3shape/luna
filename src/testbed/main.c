@@ -33,7 +33,6 @@ void init(void) {
 }
 
 void update(f32 dt) {
-    // r3_log_stdout(INFO_LOG, "[User] LunaRuntimeApi update call!\n");
     return;
 }
 
