@@ -38,6 +38,7 @@ typedef struct LunaPlatformApi {
     LUNA_FNPTR(u8, getWindowFlag, u32 flag);
     LUNA_FNPTR(u8, setWindowFlag, u32 flag);
     LUNA_FNPTR(u8, remWindowFlag, u32 flag);
+    LUNA_FNPTR(LunaWindow*, getWindow, none);
 
     LUNA_FNPTR(u8, unloadLibrary, LunaLibrary* library);
     LUNA_FNPTR(u8, loadLibrary, str path, str name, LunaLibrary* library);

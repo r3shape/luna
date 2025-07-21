@@ -21,6 +21,10 @@ static struct LunaPlatformInternal {
 LunaPlatformApi* lunaPlatformApi = NULL;
 
 
+LunaWindow* getWindowImpl(none) {
+    return LunaPlatformInternal.window;
+}
+
 u8 getWindowFlagImpl(u32 flag) {
     if (!LunaPlatformInternal.handle) return 0;    // error: window not yet created!
     return ((LunaPlatformInternal.window->flags & flag) == flag) ? 1 : 0;
@@ -401,6 +405,7 @@ u8 lunaInitPlatform(none) {
     lunaPlatformApi->pollEvents = pollEventsImpl;
     lunaPlatformApi->pollInputs = pollInputsImpl;
     
+    lunaPlatformApi->getWindow = getWindowImpl;
     lunaPlatformApi->getWindowFlag = getWindowFlagImpl;
     lunaPlatformApi->setWindowFlag = setWindowFlagImpl;
     lunaPlatformApi->remWindowFlag = remWindowFlagImpl;

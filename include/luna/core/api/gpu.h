@@ -90,6 +90,7 @@ typedef struct LunaTextureBuffer {
 typedef struct LunaElementBuffer {
     u32* elementv;
     u32 elements;
+    u32 size;
     LunaGpuHandle ebo;
 } LunaElementBuffer;
 
@@ -196,7 +197,7 @@ typedef struct LunaGpuFrame {
     u8 phases;                  // phase mask, used to track and prevent redundant GpuPhase creation
     u32 calls;
     LunaGpuHandle handle;
-    LunaGpuBuffer buffer;
+    LunaGpuHandle buffer;
     Arena_Allocator arena;
     LunaGpuCall callv[LUNA_GPU_CALL_MAX];
     LunaGpuPhase phasev[LUNA_GPU_PHASE_MAX];

@@ -47,8 +47,9 @@ LunaGpuHandle createFrameImpl(none) {
             r3_log_stdout(WARN_LOG, "[LunaRenderer] failed to zero frame resource arrays!\n");
     }
 
-    LunaRendererInternal.frame.buffer.type = LUNA_BUFFER_FRAME;
-    LunaRendererInternal.frame.buffer.handle = lunaRenderApi->createBuffer(LunaRendererInternal.frame.buffer);
+    if (!LunaRendererInternal.frame.buffer || LunaRendererInternal.frame.buffer >= LunaRendererInternal.buffers || LunaRendererInternal.frame.buffer >= LUNA_GPU_RESOURCE_MAX) {
+        LunaRendererInternal.frame.buffer = lunaRenderApi->createBuffer((LunaGpuBuffer){ .type = LUNA_BUFFER_FRAME });
+    }
 
     return LunaRendererInternal.frame.handle;
 }
@@ -152,18 +153,18 @@ LunaGpuHandle createBufferImpl(LunaGpuBuffer buffer) {
 
     LunaGpuHandle handle = LunaRendererInternal.buffers++;
     LunaGpuBuffer* buf = &LunaRendererInternal.bufferv[handle];
+
+    buf->type = buffer.type;
+    buf->handle = handle;
+
     switch (buffer.type) {
         case (LUNA_BUFFER_VERTEX): {
             if (!buffer.vertex.size) {
                 r3_log_stdoutf(ERROR_LOG, "[LunaRenderer] invalid vertex buffer size: (type)%d\n", buffer.vertex.size);
                 return 0;
             }
-
-            buf->type = buffer.type;
-            buf->handle = handle;
-            
-            buf->vertex.size = buffer.vertex.size / sizeof(f32);
-            buf->vertex.vertices = buffer.vertex.vertices;
+            buf->vertex.size = buffer.vertex.size;
+            buf->vertex.vertices = buffer.vertex.size / sizeof(f32);
             buf->vertex.vertexv = buffer.vertex.vertexv;
             buf->vertex.attribs = buffer.vertex.attribs;
             buf->vertex.vao = 0;
@@ -172,28 +173,32 @@ LunaGpuHandle createBufferImpl(LunaGpuBuffer buffer) {
             lunaGpuApi->createVertexBuffer(buf);
 
             r3_log_stdoutf(SUCCESS_LOG, "[LunaRenderer] created vertex buffer: (vbo)%d (vao)%d (vertices)%d\n", buf->vertex.vbo, buf->vertex.vao, buf->vertex.vertices);
-
             return buf->handle;
         }
         case (LUNA_BUFFER_ELEMENT): {
-            buf->type = buffer.type;
-            buf->handle = handle;
-            
+            if (!buffer.element.size) {
+                r3_log_stdoutf(ERROR_LOG, "[LunaRenderer] invalid element buffer size: (type)%d\n", buffer.element.size);
+                return 0;
+            }
+
             buf->element.elements = buffer.element.elements;
             buf->element.elementv = buffer.element.elementv;
             buf->element.ebo = 0;
 
             lunaGpuApi->createElementBuffer(buf);
-
+            
+            r3_log_stdoutf(SUCCESS_LOG, "[LunaRenderer] created element buffer: (ebo)%d (elements)%d\n", buf->element.ebo, buf->element.elements);
             return buf->handle;
         }
-        case (LUNA_BUFFER_TEXTURE): {
-            return I32_MAX;
-        }
         case (LUNA_BUFFER_FRAME): {
-            return I32_MAX;
+            lunaGpuApi->createFrameBuffer(buf);
+
+            r3_log_stdoutf(SUCCESS_LOG, "[LunaRenderer] created frame buffer: (frame buffer object)%d (texture buffer object)%d (render buffer object) %d\n",
+                buf->frame.fbo, buf->frame.tbo, buf->frame.rbo);
+            return buf->handle;
         }
-        default: return I32_MAX;
+        case (LUNA_BUFFER_TEXTURE): // fall-through
+        default: break;
     }
 
     return I32_MAX;
@@ -355,7 +360,6 @@ none destroyPipelineImpl(LunaGpuHandle pipeline) {
 }
 
 
-
 none renderImpl(none) {
     // lazy load screen quad
     if (LunaScreenQuadBufferHandle == LUNA_GPU_RESOURCE_MAX) {
@@ -375,17 +379,21 @@ none renderImpl(none) {
     // default clear color
     Vec4 clear_color = (Vec4){ .data={150, 50, 100, 255} };
 
+    // retrieve current frame
     LunaGpuFrame* frame = &LunaRendererInternal.frame;
+    
+    // retrieve current frame buffer
+    LunaGpuBuffer* frame_buffer = &LunaRendererInternal.bufferv[frame->buffer];
     FOR(u32, p, 0, LunaRendererInternal.frame.phases, 1) {
         LunaGpuPhase* phase = &frame->phasev[p];
         r3_log_stdoutf(INFO_LOG, "[LunaRenderer] begin gpu phase: (handle)%d (type)%d\n", phase->handle, phase->type);
 
         // bind frame buffer
-        lunaGpuApi->bindBuffer(&frame->buffer);
+        lunaGpuApi->bindBuffer(frame_buffer);
 
         // clear color/depth buffers
         if (phase->type == LUNA_PHASE_DEPTH) {
-            // if (LunaRendererInternal.backend == LUNA_BACKEND_OPENGL) glEnable(GL_DEPTH_TEST);
+            if (LunaRendererInternal.backend == LUNA_BACKEND_OPENGL) glEnable(GL_DEPTH_TEST);
             lunaGpuApi->clearDepthBuffer(phase->depth.clear_depth);
             r3_log_stdoutf(INFO_LOG, "[LunaRenderer] clear depth: %0.3f\n", phase->depth.clear_depth);
         } else {
@@ -432,7 +440,7 @@ none renderImpl(none) {
             }
 
             // retrieve gpu call vertex buffer
-            LunaGpuBuffer* vertex_buffer = &LunaRendererInternal.bufferv[call->vertex_buffer];
+            LunaGpuBuffer* vertex_buffer = NULL;
             if (call->vertex_buffer < LunaRendererInternal.buffers && call->vertex_buffer <= LUNA_GPU_RESOURCE_MAX) {
                 vertex_buffer = &LunaRendererInternal.bufferv[call->vertex_buffer];
             } else { r3_log_stdoutf(WARN_LOG, "[LunaRenderer] invalid vertex buffer handle assigned to call: (frame)%d (call handle)%d (vertex buffer)%d\n", frame->handle, call->handle, call->vertex_buffer); }
@@ -462,7 +470,7 @@ none renderImpl(none) {
             });
 
             // preserve screen-space quad from depth-test discard
-            // glDisable(GL_DEPTH_TEST);
+            glDisable(GL_DEPTH_TEST);
 
             lunaGpuApi->clearColorBuffer(clear_color);
             r3_vec4_log("[LunaRenderer] clear color:", clear_color);
@@ -473,7 +481,7 @@ none renderImpl(none) {
                 .type = LUNA_BUFFER_TEXTURE,
                 .texture.slot = 0,
                 .texture. type = LUNA_TEXTURE_2D,
-                .texture.tbo = frame->buffer.frame.tbo
+                .texture.tbo = frame_buffer->frame.tbo
             });
 
             // render screen quad sampling frame buffer's color buffer

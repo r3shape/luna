@@ -168,14 +168,18 @@ u8 glCreateVertexBufferImpl(LunaGpuBuffer* buffer) {
         buffer->type != LUNA_BUFFER_VERTEX ||
         !buffer->vertex.vertexv || !buffer->vertex.attribs || 
         !buffer->vertex.vertices || ((buffer->vertex.attribs & ~((1 << LUNA_VERTEX_ATTRIBUTES) - 1)) != 0)
-    ) return 0;
+    ) {
+        r3_log_stdout(ERROR_LOG, "[LunaOpenGL] invalid gpu buffer passed to CreateVertexBuffer()\n");
+        return 0;
+    }
 
     lunaOpenGL->glGenVertexArrays(1, &buffer->vertex.vao);
     lunaOpenGL->glGenBuffers(1, &buffer->vertex.vbo);
 
     lunaOpenGL->glBindVertexArray(buffer->vertex.vao);
     lunaOpenGL->glBindBuffer(GLAPI_ARRAY_BUFFER, buffer->vertex.vbo);
-
+    lunaOpenGL->glBufferData(GLAPI_ARRAY_BUFFER, buffer->vertex.size, buffer->vertex.vertexv, GLAPI_STATIC_DRAW);
+    
     // configure vertex attributes
     u32 stride = 0;
     u32 attrib_offsets[LUNA_VERTEX_ATTRIBUTES] = {0};
@@ -191,8 +195,7 @@ u8 glCreateVertexBufferImpl(LunaGpuBuffer* buffer) {
         }
     }
 
-    buffer->vertex.vertices = buffer->vertex.size / stride;
-    lunaOpenGL->glBufferData(GLAPI_ARRAY_BUFFER, buffer->vertex.vertices, buffer->vertex.vertexv, GLAPI_STATIC_DRAW);
+    buffer->vertex.vertices = buffer->vertex.vertices / stride;
 
     // enable vertex attributes
     FOR_I(0, LUNA_VERTEX_ATTRIBUTES, 1) {
@@ -215,7 +218,10 @@ u8 glCreateVertexBufferImpl(LunaGpuBuffer* buffer) {
 }
 
 u8 glDestroyVertexBufferImpl(LunaGpuBuffer* buffer) {
-    if (!buffer || buffer->type != LUNA_BUFFER_VERTEX || !buffer->vertex.vertices) return 0;
+    if (!buffer || buffer->type != LUNA_BUFFER_VERTEX || !buffer->vertex.vertices) {
+        r3_log_stdout(ERROR_LOG, "[LunaOpenGL] invalid gpu buffer passed to DestroyVertexBuffer()\n");
+        return 0;
+    };
 
     lunaOpenGL->glDeleteVertexArrays(1, &buffer->vertex.vao);
     lunaOpenGL->glDeleteBuffers(1, &buffer->vertex.vbo);
@@ -231,45 +237,256 @@ u8 glDestroyVertexBufferImpl(LunaGpuBuffer* buffer) {
 
 
 u8 glCreateElementBufferImpl(LunaGpuBuffer* buffer) {
+    if (!buffer || buffer->type != LUNA_BUFFER_ELEMENT || !!buffer->element.elements || !buffer->element.elementv) {
+        r3_log_stdout(ERROR_LOG, "[LunaOpenGL] invalid gpu buffer passed to CreateElementBuffer()\n");
+        return 0;
+    }
+    lunaOpenGL->glGenBuffers(1, &buffer->element.ebo);
+    lunaOpenGL->glBindBuffer(GLAPI_ELEMENT_BUFFER, buffer->element.ebo);
+    lunaOpenGL->glBufferData(GLAPI_ELEMENT_BUFFER, buffer->element.size, buffer->element.elementv, GLAPI_STATIC_DRAW);
+    lunaOpenGL->glBindBuffer(GLAPI_ELEMENT_BUFFER, 0);
     return 1;
 }
 
 u8 glDestroyElementBufferImpl(LunaGpuBuffer* buffer) {
+    if (!buffer || buffer->type != LUNA_BUFFER_ELEMENT || !!buffer->element.elements || !buffer->element.elementv) {
+        r3_log_stdout(ERROR_LOG, "[LunaOpenGL] invalid gpu buffer passed to DestroyElementBuffer()\n");
+        return 0;
+    }
+
+    lunaOpenGL->glDeleteBuffers(1, &buffer->element.ebo);
+    buffer->element.ebo = 0;
+    buffer->element.size = 0;
+    buffer->element.elements = 0;
     return 1;
 }
 
 
 u8 glCreateTextureBufferImpl(LunaGpuBuffer* buffer) {
+    if (
+        !buffer ||
+        !buffer->texture.path || !buffer->texture.format || !buffer->texture.channels ||
+        buffer->type != LUNA_BUFFER_TEXTURE || !buffer->texture.width || !buffer->texture.height ||
+        buffer->texture.channels > 4 || buffer->texture.format == LUNA_TEXTURE_FORMAT_INVALID) {
+        r3_log_stdout(ERROR_LOG, "[LunaOpenGL] invalid gpu buffer passed to CreateTextureBuffer()\n");
+        return 0;
+    }
+
+    stbi_set_flip_vertically_on_load(1);
+    buffer->texture.data = stbi_load(buffer->texture.path, &buffer->texture.width, &buffer->texture.height, &buffer->texture.channels, 0);
+    if (buffer->texture.data == NULL) {
+        r3_log_stdoutf(ERROR_LOG, "[LunaOpenGL] failed to load texture: (width)%d (height)%d (channels)%d (format) %d (path)%s\n",
+            buffer->texture.width, buffer->texture.height, buffer->texture.channels, buffer->texture.format, buffer->texture.path);
+        buffer->texture.data = NULL;
+        return 0;
+    }
+
+    lunaOpenGL->glGenTextures(1, &buffer->texture.tbo);
+    switch(buffer->texture.type) {
+        case (LUNA_TEXTURE_2D): {
+            lunaOpenGL->glBindTexture(GL_TEXTURE_2D, buffer->texture.tbo);
+
+            // generate the texture
+            lunaOpenGL->glTexImage2D(GL_TEXTURE_2D, 0,
+                buffer->texture.format,
+                buffer->texture.width,
+                buffer->texture.height,
+                0,
+                buffer->texture.format,
+                GL_UNSIGNED_BYTE,
+                buffer->texture.data
+            );
+            lunaOpenGL->glGenerateMipmap(GL_TEXTURE_2D);
+
+            // set texture wrapping options
+            lunaOpenGL->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT); // x-axis
+            lunaOpenGL->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT); // y-axis
+
+            // set texture filtering options (scaling up/down)
+            lunaOpenGL->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); // minification
+            lunaOpenGL->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR); // magnification
+            
+            lunaOpenGL->glBindTexture(GL_TEXTURE_2D, 0);
+            r3_log_stdoutf(INFO_LOG, "[LunaOpenGL] loaded texture 2D: (width)%d (height)%d (channels)%d (format) %d (path)%s\n",
+                buffer->texture.width, buffer->texture.height, buffer->texture.channels, buffer->texture.format, buffer->texture.path);
+        } break;
+        case (LUNA_TEXTURE_3D): // fall-through
+        default: return 0;
+    }
+
     return 1;
 }
 
 u8 glDestroyTextureBufferImpl(LunaGpuBuffer* buffer) {
+    if (!buffer || buffer->type != LUNA_BUFFER_ELEMENT || !!buffer->element.elements || !buffer->element.elementv) {
+        r3_log_stdout(ERROR_LOG, "[LunaOpenGL] invalid gpu buffer passed to DestroyTextureBuffer()\n");
+        return 0;
+    }
+    
+    lunaOpenGL->glDeleteTextures(1, &buffer->texture.tbo);
+    stbi_image_free(buffer->texture.data);
+    
+    buffer->texture.tbo = 0;
+    buffer->texture.width = 0;
+    buffer->texture.height = 0;
+    buffer->texture.format = 0;
+    buffer->texture.path = NULL;
+    buffer->texture.data = NULL;
+    buffer->texture.channels = 0;
+
     return 1;
 }
 
 
 u8 glCreateFrameBufferImpl(LunaGpuBuffer* buffer) {
+    if (!buffer || buffer->type != LUNA_BUFFER_FRAME) {
+        r3_log_stdout(ERROR_LOG, "[LunaOpenGL] invalid gpu buffer passed to CreateFrameBuffer()\n");
+        return 0;
+    }
+
+    lunaOpenGL->glGenFramebuffers(1, &buffer->frame.fbo);
+    lunaOpenGL->glBindFramebuffer(GLAPI_FRAMEBUFFER, buffer->frame.fbo);
+
+    // create the texture/color buffer
+    LunaWindow* window_ptr = lunaPlatformApi->getWindow();
+    if (window_ptr == NULL) {
+        r3_log_stdout(ERROR_LOG, "[LunaOpenGL] failed to retrieve LunaWindow pointer!\n");
+        return 0;
+    }
+    
+    lunaOpenGL->glGenTextures(1, &buffer->frame.tbo);
+    lunaOpenGL->glBindTexture(GL_TEXTURE_2D, buffer->frame.tbo);
+
+    lunaOpenGL->glTexImage2D(GL_TEXTURE_2D, 0,
+        GL_RGB,
+        window_ptr->size.data[0],
+        window_ptr->size.data[1],
+        0,
+        GL_RGB,
+        GL_UNSIGNED_BYTE,
+        NULL
+    );
+    // set texture filtering options (scaling up/down)
+    lunaOpenGL->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); // minification
+    lunaOpenGL->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR); // magnification    
+
+    // attach the texture/color buffer
+    lunaOpenGL->glFramebufferTexture2D(GLAPI_FRAMEBUFFER, GLAPI_COLOR_ATTACHMENT0, GL_TEXTURE_2D, buffer->frame.tbo, 0);
+    lunaOpenGL->glBindTexture(GL_TEXTURE_2D, 0);
+
+    // create the render buffer
+    lunaOpenGL->glGenRenderbuffers(1, &buffer->frame.rbo);
+    lunaOpenGL->glBindRenderbuffer(GLAPI_RENDERBUFFER, buffer->frame.rbo);
+    lunaOpenGL->glRenderbufferStorage(GLAPI_RENDERBUFFER, GLAPI_DEPTH24_STENCIL8, window_ptr->size.data[0], window_ptr->size.data[1]);
+
+    // attach the render buffer
+    lunaOpenGL->glFramebufferRenderbuffer(GLAPI_FRAMEBUFFER, GLAPI_DEPTH_STENCIL_ATTACHMENT, GLAPI_RENDERBUFFER, buffer->frame.rbo);
+    lunaOpenGL->glBindRenderbuffer(GLAPI_RENDERBUFFER, 0);
+    
+    lunaOpenGL->glBindFramebuffer(GLAPI_FRAMEBUFFER, 0);
     return 1;
 }
 
 u8 glDestroyFrameBufferImpl(LunaGpuBuffer* buffer) {
+    if (!buffer || buffer->type != LUNA_BUFFER_FRAME) {
+        r3_log_stdout(ERROR_LOG, "[LunaOpenGL] invalid gpu buffer passed to CreateFrameBuffer()\n");
+        return 0;
+    }
+
+    lunaOpenGL->glDeleteTextures(1, &buffer->frame.tbo);
+    lunaOpenGL->glDeleteFramebuffers(1, &buffer->frame.fbo);
+    lunaOpenGL->glDeleteRenderbuffers(1, &buffer->frame.rbo);
+    
+    buffer->frame.tbo = 0;
+    buffer->frame.fbo = 0;
+    buffer->frame.rbo = 0;
+
     return 1;
 }
 
 
 u8 glBindBufferImpl(LunaGpuBuffer* buffer) {
+    if (!buffer) {
+        r3_log_stdout(ERROR_LOG, "[LunaOpenGL] invalid gpu buffer passed to BindBuffer()\n");
+        return 0;
+    }
+
+    switch(buffer->type) {
+        case (LUNA_BUFFER_ELEMENT): {
+            lunaOpenGL->glBindBuffer(GLAPI_ELEMENT_BUFFER, buffer->element.ebo);
+            r3_log_stdoutf(INFO_LOG, "[LunaOpenGL] bound element buffer: (handle)%d (element buffer object)%d (elements)%d\n",
+            buffer->handle, buffer->element.ebo, buffer->element.elements);
+        } break;
+        case (LUNA_BUFFER_VERTEX): {
+            lunaOpenGL->glBindVertexArray(buffer->vertex.vao);
+            lunaOpenGL->glBindBuffer(GLAPI_ARRAY_BUFFER, buffer->vertex.vbo);
+            r3_log_stdoutf(INFO_LOG, "[LunaOpenGL] bound vertex buffer: (handle)%d (vertex array object)%d (vertex buffer object)%d (vertices)%d\n",
+                buffer->handle, buffer->vertex.vao, buffer->vertex.vbo, buffer->vertex.vertices);
+        } break;
+        case (LUNA_BUFFER_TEXTURE): {
+            lunaOpenGL->glActiveTexture(buffer->texture.slot);
+            switch(buffer->texture.type) {
+                case (LUNA_TEXTURE_2D): {
+                    lunaOpenGL->glBindTexture(GL_TEXTURE_2D, buffer->texture.tbo);
+                    r3_log_stdoutf(INFO_LOG, "[LunaOpenGL] bound texture buffer: (handle)%d (slot)%d (texture buffer object)%d\n",
+                        buffer->handle, buffer->texture.slot, buffer->texture.tbo);
+                }
+                case (LUNA_TEXTURE_3D): // fall-through
+                default: break;
+            }
+        } break;
+        case (LUNA_BUFFER_FRAME): {
+            lunaOpenGL->glBindFramebuffer(GLAPI_FRAMEBUFFER, buffer->frame.fbo);
+            r3_log_stdoutf(INFO_LOG, "[LunaOpenGL] bound frame buffer: (handle)%d (frame buffer object)%d (texture buffer object)%d (render buffer object)%d\n",
+                buffer->handle, buffer->frame.fbo, buffer->frame.tbo, buffer->frame.rbo);
+        } break;
+        case (LUNA_BUFFER_INVALID): // fall-through
+        case (LUNA_BUFFER_TYPES):   // fall-through
+        default: return 0;
+    }
+
     return 1;
 }
 
 u8 glReadBufferImpl(LunaGpuBuffer* buffer) {
+    if (!buffer) {
+        r3_log_stdout(ERROR_LOG, "[LunaOpenGL] invalid gpu buffer passed to ReadBuffer()\n");
+        return 0;
+    }
+
+    switch(buffer->type) {
+        case (LUNA_BUFFER_ELEMENT): {
+            r3_log_stdoutf(INFO_LOG, "[LunaOpenGL] reading element buffer: (handle)%d (elements)%d\n", buffer->handle, buffer->element.elements);
+            lunaOpenGL->glDrawElements(LUNA_MODE_TRIANGLE, buffer->element.elements, GL_UNSIGNED_INT, buffer->element.elementv);
+        } break;
+        case (LUNA_BUFFER_VERTEX): {
+            r3_log_stdoutf(INFO_LOG, "[LunaOpenGL] reading vertex buffer: (handle)%d (vertices)%d\n", buffer->handle, buffer->vertex.vertices);
+            lunaOpenGL->glDrawArrays(LUNA_MODE_TRIANGLE, 0, buffer->vertex.vertices);
+        } break;
+        case (LUNA_BUFFER_TEXTURE): // fall-through
+        case (LUNA_BUFFER_FRAME):   // fall-through
+        case (LUNA_BUFFER_INVALID): // fall-through
+        case (LUNA_BUFFER_TYPES):   // fall-through
+        default: return 0;
+    }
+
     return 1;
 }
 
+// TODO: implement this function (glWriteBufferImpl) !!!!
 u8 glWriteBufferImpl(LunaGpuBuffer* buffer) {
-    return 1;
+    return 0;
 }
 
 u8 glBindProgramImpl(LunaGpuProgram* program) {
+    if (!program) {
+        r3_log_stdout(ERROR_LOG, "[LunaOpenGL] invalid gpu program passed to BindProgram()\n");
+        return 0;
+    }
+    
+    lunaOpenGL->glUseProgram(program->program);
+    
+    r3_log_stdoutf(INFO_LOG, "[LunaOpenGL] bound gpu program: (handle)%d (program object)%d\n", program->handle, program->program);
     return 1;
 }
 

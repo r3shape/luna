@@ -1,11 +1,11 @@
 #version 460 core
 
-layout(location=0) in vec3 a_loc;
-layout(location=2) in vec2 a_tex;
+layout(location=0) in vec3 a_location;
+layout(location=1) in vec2 a_texture;
 
-out vec2 v_tex;
+out vec2 v_texture;
 
 void main() {
-    gl_Position = vec4(a_loc, 1.0);
-    v_tex = a_tex;
+    gl_Position = vec4(a_location, 1.0);
+    v_texture = a_texture;
 }

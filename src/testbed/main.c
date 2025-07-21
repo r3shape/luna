@@ -7,9 +7,9 @@ LunaGpuHandle program_handle;
 
 LunaGpuHandle tri_handle;
 f32 tri_verts[] = {
-    -0.5, -0.5, 0.5,
-     0.0,  0.5, 0.5,
-     0.5, -0.5, 0.5
+    -0.5, -0.5, 0.0,
+     0.0,  0.5, 0.0,
+     0.5, -0.5, 0.0
 };
 
 void init(void) {
@@ -43,14 +43,14 @@ void render(void) {
     opaque_phase_handle = lunaRenderApi->createPhase((LunaGpuPhase){
         .type = LUNA_PHASE_OPAQUE,
         .uniforms = 0,
-        .opaque.clear_color = (Vec4){ .data = {0, 255, 0, 255} }
+        .opaque.clear_color = (Vec4){ .data = {22, 21, 27, 255} }
     });
 
     lunaRenderApi->createCall((LunaGpuCall){
         .uniforms = 0,
         .phase = opaque_phase_handle,
         .pipeline = pipeline_handle,
-        .element_buffer = I32_MAX,
+        .element_buffer = 0,
         .vertex_buffer = tri_handle
     });
     
