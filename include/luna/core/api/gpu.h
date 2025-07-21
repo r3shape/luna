@@ -9,6 +9,14 @@
 #define LUNA_GPU_RESOURCE_MAX           KiB
 #define LUNA_GPU_PROGRAM_BUFFER_SIZE   (2 * KiB)
 
+#define LUNA_GPU_CALL_UNIFORM_MAX           8
+
+#define LUNA_GPU_PHASE_BUFFER_MAX           8
+#define LUNA_GPU_PHASE_UNIFORM_MAX          4
+
+#define LUNA_GPU_PIPELINE_BUFFER_MAX        8
+#define LUNA_GPU_PIPELINE_UNIFORM_MAX       4
+
 typedef u32 LunaGpuHandle;
 
 typedef enum LunaGpuBackend {
@@ -130,7 +138,7 @@ typedef struct LunaGpuUniform {
         Mat4 mat4;
     };
     cstr name;
-    u32 location;
+    s32 location;
     LunaGpuUniformType type;
 } LunaGpuUniform;
 
@@ -140,14 +148,13 @@ typedef struct LunaGpuProgram {
     Buffer fragment_buffer;
     Buffer vertex_buffer;
     u32 program;
-    u32 uniforms;
     Array uniformv;
     LunaGpuHandle handle;
 } LunaGpuProgram;
 
 typedef struct LunaGpuPipeline {
-    LunaGpuUniform uniformv[4];
-    LunaGpuHandle bindv[8];
+    LunaGpuUniform uniformv[LUNA_GPU_PIPELINE_UNIFORM_MAX];
+    LunaGpuHandle bindv[LUNA_GPU_PIPELINE_BUFFER_MAX];
     LunaGpuHandle program;
     LunaGpuHandle handle;
     u32 binds;
@@ -166,9 +173,9 @@ typedef struct LunaGpuLightPhase { u8 mask; } LunaGpuLightPhase;
 typedef struct LunaGpuShadowPhase { u8 mask; } LunaGpuShadowPhase;
 
 typedef struct LunaGpuPhase {
-    LunaGpuUniform uniformv[4];
-    LunaGpuHandle writev[8];
-    LunaGpuHandle readv[8];
+    LunaGpuUniform uniformv[LUNA_GPU_PHASE_UNIFORM_MAX];
+    LunaGpuHandle writev[LUNA_GPU_PHASE_BUFFER_MAX];
+    LunaGpuHandle readv[LUNA_GPU_PHASE_BUFFER_MAX];
     union {
         LunaGpuDepthPhase depth;
         LunaGpuOpaquePhase opaque;
@@ -184,7 +191,7 @@ typedef struct LunaGpuPhase {
 } LunaGpuPhase;
 
 typedef struct LunaGpuCall {
-    LunaGpuUniform uniformv[6];
+    LunaGpuUniform uniformv[LUNA_GPU_CALL_UNIFORM_MAX];
     LunaGpuHandle element_buffer;
     LunaGpuHandle vertex_buffer;
     LunaGpuHandle pipeline;

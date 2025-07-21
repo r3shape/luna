@@ -61,6 +61,11 @@ LunaGpuHandle createCallImpl(LunaGpuCall call) {
         return I32_MAX;
     }
 
+    if (call.uniforms > LUNA_GPU_CALL_UNIFORM_MAX) {
+        r3_log_stdoutf(WARN_LOG, "[LunaRenderer] gpu call with invalid number of gpu uniforms: (uniforms)%d (max)%d\n", call.uniforms, LUNA_GPU_CALL_UNIFORM_MAX);
+        return I32_MAX;
+    }
+
     if (call.phase >= I32_MAX) {
         r3_log_stdoutf(WARN_LOG, "[LunaRenderer] gpu call to invalid gpu phase: (phase)%d\n", call.phase);
         return I32_MAX;
@@ -99,6 +104,11 @@ LunaGpuHandle createPhaseImpl(LunaGpuPhase phase) {
         r3_log_stdoutf(ERROR_LOG, "[LunaRenderer] invalid phase type: (type)%d\n", phase.type);
         return I32_MAX;
     }
+    
+    if (phase.uniforms > LUNA_GPU_PHASE_UNIFORM_MAX) {
+        r3_log_stdoutf(WARN_LOG, "[LunaRenderer] gpu phase with invalid number of gpu uniforms: (uniforms)%d (max)%d\n", phase.uniforms, LUNA_GPU_PHASE_UNIFORM_MAX);
+        return I32_MAX;
+    }
 
     LunaGpuHandle handle = LunaRendererInternal.frame.phases++;
     LunaGpuPhase* phase_ptr = &LunaRendererInternal.frame.phasev[handle];
@@ -109,7 +119,12 @@ LunaGpuHandle createPhaseImpl(LunaGpuPhase phase) {
             r3_log_stdout(WARN_LOG, "[LunaRenderer] failed to zero phase dependency arrays!\n");
     }
     
-    *phase_ptr = (LunaGpuPhase){ .handle = handle, .type = phase.type, .writes = 0, .reads = 0, .uniforms = 0 };
+    *phase_ptr = (LunaGpuPhase){ .handle = handle, .type = phase.type, .writes = 0, .reads = 0, .uniforms = phase.uniforms };
+
+    if (phase_ptr->uniforms && !r3_mem_write((sizeof(LunaGpuUniform) * phase_ptr->uniforms), phase.uniformv, &phase_ptr->uniformv)) {
+        r3_log_stdout(ERROR_LOG, "[LunaRenderer] failed to write uniform array into memory\n");;
+        return I32_MAX;
+    }
 
     switch (phase.type) {
         case (LUNA_PHASE_DEPTH): {
@@ -283,17 +298,15 @@ LunaGpuHandle createProgramImpl(str vertex_path, str fragment_path) {
         return I32_MAX;
     }
 
-    // TODO: (r3kt hash arrays crash the runtime???)
     // allocate uniform array
-    // if (!r3_arr_hashed_alloc(16, sizeof(LunaGpuUniform), &program->uniformv)) {
-    //     r3_log_stdout(ERROR_LOG, "[LunaRenderer] failed to allocate program uniform array\n");
-    //     r3_buf_dealloc(&program->vertex_buffer);
-    //     r3_buf_dealloc(&program->fragment_buffer);
-    //     return I32_MAX;
-    // } else { r3_log_stdout(INFO_LOG, "[LunaRenderer] allocated program uniform array\n"); }
+    if (!r3_arr_hashed_alloc(16, sizeof(LunaGpuUniform), &program->uniformv)) {
+        r3_log_stdout(ERROR_LOG, "[LunaRenderer] failed to allocate program uniform array\n");
+        r3_buf_dealloc(&program->vertex_buffer);
+        r3_buf_dealloc(&program->fragment_buffer);
+        return I32_MAX;
+    } else { r3_log_stdout(INFO_LOG, "[LunaRenderer] allocated program uniform array\n"); }
 
     program->handle = handle;
-    program->uniforms = 0;
 
     r3_log_stdoutf(INFO_LOG, "[LunaRenderer] created program: (handle)%d (program)%d\n", handle, program->program);
     return handle;
@@ -318,6 +331,11 @@ none destroyProgramImpl(LunaGpuHandle program) {
 LunaGpuHandle createPipelineImpl(LunaGpuPipeline pipeline) {
     if ((LunaRendererInternal.pipelines + 1) > LUNA_GPU_RESOURCE_MAX) {
         r3_log_stdoutf(WARN_LOG, "[LunaRenderer] gpu pipeline max reached: (frame)%d\n", LunaRendererInternal.frame.handle);
+        return I32_MAX;
+    }
+
+    if (pipeline.uniforms > LUNA_GPU_PIPELINE_UNIFORM_MAX) {
+        r3_log_stdoutf(WARN_LOG, "[LunaRenderer] gpu pipeline with invalid number of gpu uniforms: (uniforms)%d (max)%d\n", pipeline.uniforms, LUNA_GPU_PIPELINE_UNIFORM_MAX);
         return I32_MAX;
     }
 
@@ -386,7 +404,7 @@ none renderImpl(none) {
     LunaGpuBuffer* frame_buffer = &LunaRendererInternal.bufferv[frame->buffer];
     FOR(u32, p, 0, LunaRendererInternal.frame.phases, 1) {
         LunaGpuPhase* phase = &frame->phasev[p];
-        r3_log_stdoutf(INFO_LOG, "[LunaRenderer] begin gpu phase: (handle)%d (type)%d\n", phase->handle, phase->type);
+        r3_log_stdoutf(INFO_LOG, "[LunaRenderer] begin gpu phase: (handle)%d (type)%d (uniforms)%d\n", phase->handle, phase->type, phase->uniforms);
 
         // bind frame buffer
         lunaGpuApi->bindBuffer(frame_buffer);
@@ -420,20 +438,14 @@ none renderImpl(none) {
             FOR(u32, b, 0, pipeline->binds, 1) {
                 lunaGpuApi->bindBuffer(&LunaRendererInternal.bufferv[pipeline->bindv[b]]);
             }
-
-            // send program uniforms
-            FOR(u32, pu, 0, program->uniforms, 1) {
-                lunaGpuApi->setUniform(&((LunaGpuUniform*)program->uniformv.data)[pu], program);
-                lunaGpuApi->sendUniform(((LunaGpuUniform*)program->uniformv.data)[pu].name, program);
-            }
             
-            // send phase uniforms
+            // send per-phase uniforms
             FOR(u32, phu, 0, phase->uniforms, 1) {
                 lunaGpuApi->setUniform(&phase->uniformv[phu], program);
                 lunaGpuApi->sendUniform(phase->uniformv[phu].name, program);
             }
 
-            // send call uniforms
+            // send per-call uniforms
             FOR(u32, cu, 0, call->uniforms, 1) {
                 lunaGpuApi->setUniform(&call->uniformv[cu], program);
                 lunaGpuApi->sendUniform(call->uniformv[cu].name, program);
@@ -451,6 +463,8 @@ none renderImpl(none) {
                 element_buffer = &LunaRendererInternal.bufferv[call->element_buffer];
             } else { r3_log_stdoutf(WARN_LOG, "[LunaRenderer] invalid element buffer handle assigned to call: (frame)%d (call handle)%d (element buffer)%d\n", frame->handle, call->handle, call->element_buffer); }
 
+
+            // TODO: increment phase buffer reads + append handle to readv array
             // bind + read vertex/element buffers
             lunaGpuApi->bindBuffer(vertex_buffer);
             if (element_buffer != NULL && element_buffer->element.elementv != NULL && element_buffer->element.elements != 0) {

@@ -108,32 +108,32 @@ u8 glSendUniformImpl(cstr name, LunaGpuProgram* program) {
         case LUNA_UNIFORM_TYPES: break;
         case LUNA_UNIFORM_INT: {
             lunaOpenGL->glUniform1i(uniform.location, uniform.s32);
-            r3_log_stdoutf(SUCCESS_LOG, "[LunaOpenGL] sent int uniform: (uniform)%s\n", name);
+            r3_log_stdoutf(SUCCESS_LOG, "[LunaOpenGL] sent int uniform: (uniform)%s (location)%d\n", name, uniform.location);
             return 1;
         }
         case LUNA_UNIFORM_FLOAT: {
             lunaOpenGL->glUniform1f(uniform.location, uniform.f32);
-            r3_log_stdoutf(SUCCESS_LOG, "[LunaOpenGL] sent float uniform: (uniform)%s\n", name);
+            r3_log_stdoutf(SUCCESS_LOG, "[LunaOpenGL] sent float uniform: (uniform)%s (location)%d\n", name, uniform.location);
             return 1;
         }
         case LUNA_UNIFORM_VEC2: {
-            lunaOpenGL->glUniform2fv(uniform.location, 1, (f32*)uniform.vec2.data);
-            r3_log_stdoutf(SUCCESS_LOG, "[LunaOpenGL] sent vec2 uniform: (uniform)%s\n", name);
+            lunaOpenGL->glUniform2fv(uniform.location, 1, ((f32*)&uniform.vec2.data[0]));
+            r3_log_stdoutf(SUCCESS_LOG, "[LunaOpenGL] sent vec2 uniform: (uniform)%s (location)%d\n", name, uniform.location);
             return 1;
         }
         case LUNA_UNIFORM_VEC3: {
-            lunaOpenGL->glUniform2fv(uniform.location, 1, (f32*)uniform.vec3.data);
-            r3_log_stdoutf(SUCCESS_LOG, "[LunaOpenGL] sent vec3 uniform: (uniform)%s\n", name);
+            lunaOpenGL->glUniform2fv(uniform.location, 1, ((f32*)&uniform.vec3.data[0]));
+            r3_log_stdoutf(SUCCESS_LOG, "[LunaOpenGL] sent vec3 uniform: (uniform)%s (location)%d\n", name, uniform.location);
             return 1;
         }
         case LUNA_UNIFORM_VEC4: {
-            lunaOpenGL->glUniform2fv(uniform.location, 1, (f32*)uniform.vec4.data);
-            r3_log_stdoutf(SUCCESS_LOG, "[LunaOpenGL] sent vec4 uniform: (uniform)%s\n", name);
+            lunaOpenGL->glUniform2fv(uniform.location, 1, ((f32*)&uniform.vec4.data[0]));
+            r3_log_stdoutf(SUCCESS_LOG, "[LunaOpenGL] sent vec4 uniform: (uniform)%s (location)%d\n", name, uniform.location);
             return 1;
         }
         case LUNA_UNIFORM_MAT4: {
-            lunaOpenGL->glUniformMatrix4fv(uniform.location, 1, 0, (f32*)uniform.mat4.data);
-            r3_log_stdoutf(SUCCESS_LOG, "[LunaOpenGL] sent mat4 uniform: (uniform)%s\n", name);
+            lunaOpenGL->glUniformMatrix4fv(uniform.location, 1, 0, ((f32*)&uniform.mat4.data[0]));
+            r3_log_stdoutf(SUCCESS_LOG, "[LunaOpenGL] sent mat4 uniform: (uniform)%s (location)%d\n", name, uniform.location);
             return 1;
         }
         default: break;
@@ -151,7 +151,13 @@ u8 glSetUniformImpl(LunaGpuUniform* uniform, LunaGpuProgram* program) {
         return 0;
     }
 
-    if (!uniform->location) { uniform->location = lunaOpenGL->glGetUniformLocation(program->program, uniform->name); }
+    if (!uniform->location) {
+        uniform->location = lunaOpenGL->glGetUniformLocation(program->program, uniform->name);
+        if (uniform->location < 0) {
+            r3_log_stdoutf(ERROR_LOG, "[LunaOpenGL] failed to get uniform location: (uniform)%s (type)%d\n", uniform->name, uniform->type);
+            return 0;
+        }
+    }
 
     if (!r3_arr_hashed_write(uniform->name, uniform, &program->uniformv)) {
         r3_log_stdoutf(ERROR_LOG, "[LunaOpenGL] failed to write to uniform array: (uniform)%s (type)%d\n", uniform->name, uniform->type);

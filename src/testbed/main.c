@@ -5,6 +5,8 @@ LunaGpuHandle opaque_phase_handle;
 LunaGpuHandle pipeline_handle;
 LunaGpuHandle program_handle;
 
+Vec3 u_color = (Vec3){ .data = {0.0, 1.0, 1.0} };
+
 LunaGpuHandle tri_handle;
 f32 tri_verts[] = {
     -0.5, -0.5, 0.0,
@@ -41,17 +43,18 @@ void render(void) {
 
     opaque_phase_handle = lunaRenderApi->createPhase((LunaGpuPhase){
         .type = LUNA_PHASE_OPAQUE,
-        .uniforms = 0,
         .opaque.clear_color = (Vec4){ .data = {22, 21, 27, 255} }
     });
 
     lunaRenderApi->createCall((LunaGpuCall){
-        .uniforms = 0,
         .phase = opaque_phase_handle,
         .pipeline = pipeline_handle,
         .element_buffer = 0,
-        .vertex_buffer = tri_handle
-    });
+        .vertex_buffer = tri_handle,
+        .uniforms = 1, .uniformv = {
+            {.type = LUNA_UNIFORM_VEC3, .name = "u_color", .vec3 = u_color}
+        }
+        });
     
     lunaRenderApi->render();
     return;
