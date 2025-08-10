@@ -36,7 +36,7 @@ r3ngin includes a **pre-configured `r3make` file** for easy setup and compilatio
    ```
 
 4. **Build the Engine**:  
-   - Target: `r3ngin` builds the `r3ngincore.dll` from `r3ngin/src/core`
+   - Target: `r3ngin` builds the `r3n.core.dll` from `r3ngin/src/core`
    ```bash
    r3make -nf -v
    ```
@@ -46,7 +46,7 @@ r3ngin includes a **pre-configured `r3make` file** for easy setup and compilatio
    ```
 
 5. **Output**:  
-   The compiled `r3ngincore.dll`, along with `r3ngin.exe` runtime will be located in the `build` directory.
+   The compiled `r3n.core.dll`, along with `r3ngin.exe` runtime will be located in the `build` directory.
 ---
 
 ### Option 2: Manual Compilation
