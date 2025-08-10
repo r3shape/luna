@@ -1,0 +1,55 @@
+{
+    "main": {
+        "defines": ["R3N_BUILD"],
+        "flags": ["-Wall", "-Werror", "-std=c99"],
+
+        "includes": [".", "r3n.external/thirdparty"],
+        "sources": [
+            "r3ngin/src/r3n.core/*.c",
+            "r3ngin/src/r3n.core/api/*.c",
+            "r3ngin/src/r3n.core/platform/*.c"
+        ],
+
+        "libraries": {
+            "gdi32": null,
+            "opengl32": null,
+            "r3kit": "r3n.external/thirdparty/build/r3kit"
+        },
+
+        "name": "r3n.core",
+        "type": "dll",
+        "dest": "r3n.build"
+    },
+    
+    "runtime": {
+        "flags": ["-Wall", "-Werror", "-std=c99"],
+
+        "includes": [".", "r3n.external/thirdparty"],
+        "sources": ["r3ngin/src/r3n.runtime/*.c"],
+
+        "libraries": {
+            "r3n.core": "r3n.build",
+            "r3kit": "r3n.external/thirdparty/build/r3kit"
+        },
+
+        "name": "r3ngin",
+        "type": "exe",
+        "dest": "r3n.build"
+    },
+
+    "testbed": {
+        "flags": ["-Wall", "-Werror", "-std=c99"],
+        
+        "sources": ["r3ngin/src/r3n.testbed/*.c"],
+        "includes": [".", "r3n.external/thirdparty"],
+
+        "libraries": {
+            "r3n.core": "r3n.build",
+            "r3kit": "r3n.external/thirdparty/build/r3kit"
+        },
+    
+        "type": "dll",
+        "name": "test",
+        "dest": "r3n.data/user"
+    }
+}
